@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #f3f4f6; --panel: #ffffff; --ink: #101828; --ink2: #475467; --ink3: #98a2b3;
+    --line: #eceef2; --soft: #f7f8fa;
+    --g50: #eaf6ef; --g100: #d6ecdf; --g300: #6fbf8f; --g500: #1f9d57; --g600: #16814a; --g700: #0f6b3c; --g900: #0c4a2c;
+    --amber: #d98a1a; --amber50: #fdf3e3; --red: #b42318; --red50: #fdecea;
+    --r-lg: 22px; --r-md: 14px;
+    --sh: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.05);
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--page); color: var(--ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  a { color: var(--g700); text-decoration: none; }
+  a:hover { color: var(--g900); text-decoration: underline; }
+  input, button, select { font-family: inherit; }
+  input::placeholder { color: var(--ink3); }
+  ::selection { background: var(--g100); }
+  :focus-visible { outline: 2px solid var(--g500); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scroll { overflow-y: auto; overflow-x: hidden; min-height: 0; scrollbar-width: thin; scrollbar-color: #d7dae0 transparent; }
+  .scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: #d7dae0; border-radius: 999px; }
+  .scroll::-webkit-scrollbar-track { background: transparent; }
+  .navitem { transition: background .15s, color .15s; }
+  .navitem:hover { background: var(--soft); }
+  .btnp { transition: filter .15s, transform .1s; }
+  .btnp:hover { filter: brightness(1.08); }
+  .btnp:active { transform: translateY(1px); }
+  .btng:hover { background: var(--g50); }
+  .trow { transition: background .12s; }
+  .trow:hover { background: var(--soft); }
+  .iconbtn { transition: background .15s; }
+  .iconbtn:hover { background: var(--soft); }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+  .dash { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(300px,1fr); gap: 16px; align-items: start; }
+  @media (max-width: 1180px) { .dash { grid-template-columns: minmax(0,1fr); } }
+  @media (max-width: 1040px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .searchbox { flex: 1 1 200px; min-width: 0; max-width: 390px; }
+  @media (max-width: 1240px) { .hide-md { display: none !important; } }
+  @media (max-width: 1080px) { .hide-sm { display: none !important; } }
+  .tblwrap { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .tblinner { min-width: 900px; }
+</style>
+</helmet>
+
+<div style="height:100vh; display:flex; overflow:hidden; background:var(--page); padding:14px; gap:14px">
+
+  <div style="flex:0 0 auto; display:flex; flex-direction:column; width:{{ railWidth }}; background:var(--panel); border-radius:var(--r-lg); box-shadow:var(--sh); overflow:hidden">
+    <div style="display:flex; align-items:center; gap:11px; padding:20px 18px 14px">
+      <div style="width:34px; height:34px; flex:0 0 auto; border-radius:11px; background:var(--g600); display:flex; align-items:center; justify-content:center; color:#fff">{{ logoIcon }}</div>
+      <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+        <span style="font-size:17px; font-weight:800; letter-spacing:-.3px; white-space:nowrap">{{ shopName }}</span>
+      </sc-if>
+    </div>
+
+    <div class="scroll" style="flex:1; padding:6px 12px 12px; display:flex; flex-direction:column; gap:3px">
+      <sc-for list="{{ navGroups }}" as="grp" hint-placeholder-count="2">
+        <sc-if value="{{ grp.showLabel }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:14px 10px 6px; font-size:10.5px; font-weight:700; letter-spacing:.12em; color:var(--ink3)">{{ grp.label }}</div>
+        </sc-if>
+        <sc-for list="{{ grp.items }}" as="item" hint-placeholder-count="5">
+          <div class="navitem" onClick="{{ item.go }}" title="{{ item.label }}" style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; cursor:pointer; font-size:13.5px; font-weight:600; background:{{ item.bg }}; color:{{ item.fg }}; justify-content:{{ item.justify }}">
+            <span style="display:flex; color:{{ item.iconFg }}">{{ item.icon }}</span>
+            <sc-if value="{{ item.showText }}" hint-placeholder-val="{{ true }}">
+              <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ item.label }}</span>
+            </sc-if>
+            <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+              <span class="num" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; background:{{ item.badgeBg }}; color:{{ item.badgeFg }}">{{ item.badge }}</span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="margin:0 14px 16px; padding:14px 15px; border-radius:16px; background:var(--g900); color:#fff; display:flex; flex-direction:column; gap:9px">
+        <div style="display:flex; align-items:center; gap:9px">
+          <span style="display:flex; align-items:center; justify-content:center; width:28px; height:28px; flex:0 0 auto; border-radius:9px; background:rgba(255,255,255,.14)">{{ appIcon }}</span>
+          <span style="font-size:13.5px; font-weight:700">Field app</span>
+        </div>
+        <button class="btnp" onClick="{{ showMobile }}" style="border:0; cursor:pointer; padding:9px 14px; border-radius:999px; background:var(--g500); color:#fff; font-size:12.5px; font-weight:700">Open</button>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:14px">
+
+    <div class="topbar" style="flex:0 0 auto; padding:11px 16px; background:var(--panel); border-radius:var(--r-lg); box-shadow:var(--sh)">
+      <button class="iconbtn" onClick="{{ toggleSidebar }}" title="Show / hide menu" style="border:0; cursor:pointer; width:36px; height:36px; border-radius:11px; background:var(--soft); color:var(--ink2); display:flex; align-items:center; justify-content:center">{{ menuIcon }}</button>
+      <div class="searchbox" style="display:flex; align-items:center; gap:9px; padding:9px 14px; border-radius:999px; background:var(--soft); color:var(--ink3)">
+        {{ searchIcon }}
+        <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search customer, account…" style="flex:1; min-width:0; border:0; background:transparent; font-size:13.5px; color:var(--ink); outline:none">
+        <span class="num hide-md" style="font-size:10.5px; font-weight:700; padding:3px 7px; border-radius:7px; background:#fff; color:var(--ink3); border:1px solid var(--line)">⌘F</span>
+      </div>
+      <div class="hide-md" style="display:flex; align-items:center; gap:8px; padding:7px 13px; border-radius:999px; background:var(--g50); color:var(--g700); font-size:12px; font-weight:600; white-space:nowrap">
+        {{ clockIcon }}<span>{{ windowNote }}</span>
+      </div>
+      <div style="flex:1 1 0; min-width:0"></div>
+      <div style="flex:0 0 auto; display:flex; gap:5px; padding:4px; background:var(--soft); border-radius:999px">
+        <button onClick="{{ showDesktop }}" style="border:0; cursor:pointer; border-radius:999px; padding:7px 15px; font-size:12.5px; font-weight:700; background:{{ deskBg }}; color:{{ deskFg }}">Office</button>
+        <button onClick="{{ showMobile }}" style="border:0; cursor:pointer; border-radius:999px; padding:7px 15px; font-size:12.5px; font-weight:700; background:{{ mobBg }}; color:{{ mobFg }}">Field</button>
+      </div>
+      <button class="iconbtn" onClick="{{ openMessages }}" title="Message centre" style="flex:0 0 auto; border:0; cursor:pointer; width:36px; height:36px; border-radius:999px; background:var(--soft); color:var(--ink2); display:flex; align-items:center; justify-content:center">{{ mailIcon }}</button>
+      <div style="flex:0 0 auto; display:flex; align-items:center; gap:9px; padding-left:11px; border-left:1px solid var(--line)">
+        <div style="width:34px; height:34px; flex:0 0 auto; border-radius:999px; background:var(--g100); display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:800; color:var(--g900)">KA</div>
+        <div class="hide-sm" style="display:flex; flex-direction:column; line-height:1.3">
+          <span style="font-size:12.5px; font-weight:700">Khalil Ahmad</span>
+          <span style="font-size:11px; color:var(--ink3)">Owner / Admin</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll" style="flex:1; min-height:0; display:flex; flex-direction:column; gap:16px; padding-right:2px">
+
+      <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; padding:2px 2px 0">
+        <div style="flex:1; min-width:230px">
+          <h1 style="font-size:26px; font-weight:800; letter-spacing:-.6px; margin:0">{{ screenTitle }}</h1>
+          <p style="margin:4px 0 0; font-size:12.5px; color:var(--ink3)">{{ screenHint }}</p>
+        </div>
+        <sc-if value="{{ showMonths }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; gap:4px; padding:4px; background:var(--panel); border-radius:999px; box-shadow:var(--sh)">
+            <sc-for list="{{ months }}" as="m" hint-placeholder-count="3">
+              <button onClick="{{ m.select }}" style="border:0; cursor:pointer; border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:700; background:{{ m.bg }}; color:{{ m.fg }}">{{ m.label }}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <button class="btnp" onClick="{{ primaryAction }}" style="border:0; cursor:pointer; border-radius:999px; padding:12px 21px; display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; background:var(--g600); color:#fff; box-shadow:0 6px 16px rgba(15,107,60,.22)">{{ primaryIcon }}{{ primaryLabel }}</button>
+      </div>
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="kpis">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+            <div style="padding:18px 20px; border-radius:var(--r-lg); background:{{ k.bg }}; box-shadow:var(--sh); display:flex; flex-direction:column; gap:9px">
+              <div style="display:flex; align-items:center; gap:9px">
+                <span style="display:flex; color:{{ k.iconFg }}">{{ k.icon }}</span>
+                <span style="flex:1; font-size:13px; font-weight:700; color:{{ k.labelFg }}">{{ k.label }}</span>
+                <button class="iconbtn" onClick="{{ k.open }}" title="{{ k.label }}" style="border:0; cursor:pointer; width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:{{ k.btnBg }}; color:{{ k.btnFg }}">{{ arrowIcon }}</button>
+              </div>
+              <span class="num" style="font-size:31px; font-weight:800; letter-spacing:-1px; line-height:1.05; color:{{ k.valueFg }}">{{ k.value }}</span>
+              <span style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:{{ k.noteFg }}">{{ k.noteIcon }}{{ k.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div class="dash">
+          <div style="padding:19px 20px 8px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:13px">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+              <div style="flex:1; min-width:150px">
+                <h2 style="font-size:16.5px; font-weight:800; margin:0">Dues to recover</h2>
+                <span style="font-size:12px; color:var(--ink2)">{{ monthLabel }} · {{ dashCountNote }}</span>
+              </div>
+              <div style="display:flex; gap:5px">
+                <sc-for list="{{ dashTabs }}" as="t" hint-placeholder-count="3">
+                  <button onClick="{{ t.select }}" style="border:1px solid {{ t.border }}; cursor:pointer; border-radius:999px; padding:7px 13px; font-size:12px; font-weight:700; white-space:nowrap; background:{{ t.bg }}; color:{{ t.fg }}">{{ t.label }} {{ t.count }}</button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:14px; flex-wrap:wrap; padding:10px 13px; border-radius:var(--r-md); background:var(--soft)">
+              <sc-for list="{{ legend }}" as="l" hint-placeholder-count="5">
+                <span style="display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--ink2)">
+                  <span style="width:9px; height:9px; border-radius:3px; background:{{ l.color }}"></span>{{ l.label }}
+                </span>
+              </sc-for>
+            </div>
+
+            <div style="display:grid; grid-template-columns:{{ dashGrid }}; gap:12px; padding:0 4px 8px; border-bottom:1px solid var(--line); font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3)">
+              <span style="padding-left:15px">Customer</span><span>Status</span><span style="text-align:right">Due now</span><span style="text-align:right; padding-right:41px">Action</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column">
+              <sc-for list="{{ dashRows }}" as="c" hint-placeholder-count="7">
+                <div class="trow" style="display:grid; grid-template-columns:{{ dashGrid }}; gap:12px; align-items:center; padding:13px 4px; border-bottom:1px solid var(--line)">
+                  <div style="display:flex; align-items:center; gap:11px; min-width:0">
+                    <span style="width:4px; height:34px; border-radius:999px; flex:0 0 auto; background:{{ c.edge }}"></span>
+                    <div style="display:flex; flex-direction:column; gap:2px; min-width:0">
+                      <span style="font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.name }}</span>
+                      <span style="font-size:11.5px; color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.dashMeta }}</span>
+                    </div>
+                  </div>
+                  <div><span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; white-space:nowrap; background:{{ c.chipBg }}; color:{{ c.chipFg }}">{{ c.chipIcon }}{{ c.statusLabel }}</span></div>
+                  <div class="num" style="display:flex; flex-direction:column; gap:2px; align-items:flex-end">
+                    <span style="font-size:14.5px; font-weight:800; color:{{ c.dueFg }}">{{ c.dueFmt }}</span>
+                    <span style="font-size:11px; color:var(--ink3)">{{ c.remainingNote }}</span>
+                  </div>
+                  <div style="display:flex; justify-content:flex-end; gap:7px">
+                    <button class="btnp" onClick="{{ c.collect }}" style="border:0; cursor:pointer; border-radius:999px; padding:8px 14px; display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; background:{{ c.actionBg }}; color:{{ c.actionFg }}">{{ c.collectIcon }}{{ c.actionLabel }}</button>
+                    <button class="btng" onClick="{{ c.remind }}" title="Send WhatsApp reminder" style="border:1px solid var(--line); cursor:pointer; border-radius:999px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--g700)">{{ c.msgIcon }}</button>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noDashRows }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:28px; text-align:center; font-size:13px; color:var(--ink2)">Nothing due in this filter — everyone here is settled.</div>
+              </sc-if>
+            </div>
+            <div style="padding:6px 4px 12px; font-size:12px; color:var(--ink2)">{{ dashFooter }}</div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:16px">
+            <div style="padding:19px 20px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:15px">
+              <div style="display:flex; align-items:center; gap:9px">
+                <h2 style="font-size:16.5px; font-weight:800; margin:0; flex:1">Officer recovery</h2>
+                <button class="iconbtn" onClick="{{ openRecovery }}" title="AVO & recovery" style="border:0; cursor:pointer; width:28px; height:28px; border-radius:999px; background:var(--soft); color:var(--ink2); display:flex; align-items:center; justify-content:center">{{ arrowIcon }}</button>
+              </div>
+              <sc-for list="{{ officers }}" as="o" hint-placeholder-count="4">
+                <div style="display:flex; flex-direction:column; gap:6px">
+                  <div style="display:flex; align-items:center; gap:9px">
+                    <span style="width:26px; height:26px; flex:0 0 auto; border-radius:999px; background:var(--g50); color:var(--g700); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800">{{ o.initials }}</span>
+                    <span style="font-size:13px; font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ o.name }}</span>
+                    <span class="num" style="font-size:12.5px; font-weight:800; color:{{ o.pctFg }}">{{ o.pct }}%</span>
+                  </div>
+                  <div style="height:7px; border-radius:999px; background:var(--soft); overflow:hidden">
+                    <div style="height:100%; border-radius:999px; width:{{ o.pct }}%; background:{{ o.barBg }}"></div>
+                  </div>
+                  <div class="num" style="display:flex; gap:8px; font-size:11px; color:var(--ink3)">
+                    <span>{{ o.collectedFmt }} / {{ o.targetFmt }}</span>
+                    <span style="flex:1; text-align:right">{{ o.assigned }} accounts · {{ o.pending }} pending</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="padding:19px 20px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:10px">
+              <div style="display:flex; align-items:baseline; gap:9px">
+                <h2 style="font-size:16.5px; font-weight:800; margin:0; flex:1">Receipts today</h2>
+                <span class="num" style="font-size:13px; font-weight:800; color:var(--g700)">{{ collectedFmt }}</span>
+              </div>
+              <sc-for list="{{ receipts }}" as="r" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line)">
+                  <div style="width:30px; height:30px; flex:0 0 auto; border-radius:999px; background:var(--g50); color:var(--g700); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800">{{ r.initials }}</div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column">
+                    <span style="font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.name }}</span>
+                    <span style="font-size:11px; color:var(--ink3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.meta }}</span>
+                  </div>
+                  <span class="num" style="font-size:13px; font-weight:800">{{ r.amountFmt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isTable }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="kpis">
+          <sc-for list="{{ screenStats }}" as="k" hint-placeholder-count="4">
+            <div style="padding:17px 19px; border-radius:var(--r-lg); background:{{ k.bg }}; box-shadow:var(--sh); display:flex; flex-direction:column; gap:8px">
+              <span style="display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:{{ k.labelFg }}">{{ k.icon }}{{ k.label }}</span>
+              <span class="num" style="font-size:27px; font-weight:800; letter-spacing:-.8px; line-height:1.1; color:{{ k.valueFg }}">{{ k.value }}</span>
+              <span style="font-size:11.5px; font-weight:600; color:{{ k.noteFg }}">{{ k.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding:19px 20px 8px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:13px">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+            <h2 style="font-size:16.5px; font-weight:800; margin:0">{{ tableTitle }}</h2>
+            <div style="flex:1"></div>
+            <sc-if value="{{ hasAvoFilter }}" hint-placeholder-val="{{ false }}">
+              <select value="{{ avoFilter }}" onChange="{{ onAvo }}" style="padding:9px 14px; border-radius:999px; border:1px solid var(--line); background:#fff; font-size:12.5px; font-weight:600; color:var(--ink)">
+                <sc-for list="{{ avoOptions }}" as="o" hint-placeholder-count="5">
+                  <option value="{{ o.value }}">{{ o.label }}</option>
+                </sc-for>
+              </select>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ hasTabs }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; gap:6px; flex-wrap:wrap">
+              <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+                <button onClick="{{ t.select }}" style="border:1px solid {{ t.border }}; cursor:pointer; border-radius:999px; padding:7px 13px; font-size:12px; font-weight:700; white-space:nowrap; background:{{ t.bg }}; color:{{ t.fg }}">{{ t.label }} · {{ t.count }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <div class="tblwrap">
+            <div class="tblinner">
+              <div style="display:grid; grid-template-columns:{{ tableGrid }}; gap:12px; padding:0 4px 8px; border-bottom:1px solid var(--line); font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3)">
+                <sc-for list="{{ tableCols }}" as="col" hint-placeholder-count="6">
+                  <span style="text-align:{{ col.align }}; padding-right:{{ col.padRight }}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ col.label }}</span>
+                </sc-for>
+              </div>
+              <div style="display:flex; flex-direction:column">
+                <sc-for list="{{ tableRows }}" as="row" hint-placeholder-count="8">
+                  <div class="trow" style="display:grid; grid-template-columns:{{ tableGrid }}; gap:12px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line)">
+                    <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="6">
+                      <div style="min-width:0; display:flex; flex-direction:column; gap:3px; align-items:{{ cell.items }}">
+                        <sc-if value="{{ cell.text }}" hint-placeholder-val="{{ true }}">
+                          <span class="{{ cell.cls }}" style="font-size:13px; font-weight:{{ cell.weight }}; color:{{ cell.fg }}; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ cell.text }}</span>
+                        </sc-if>
+                        <sc-if value="{{ cell.sub }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:11px; color:var(--ink3); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ cell.sub }}</span>
+                        </sc-if>
+                        <sc-if value="{{ cell.chip }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; white-space:nowrap; background:{{ cell.chipBg }}; color:{{ cell.chipFg }}">{{ cell.chip }}</span>
+                        </sc-if>
+                        <sc-if value="{{ cell.action }}" hint-placeholder-val="{{ false }}">
+                          <button class="btnp" onClick="{{ cell.onAction }}" style="border:{{ cell.actionBorder }}; cursor:pointer; border-radius:999px; padding:7px 14px; font-size:12px; font-weight:700; background:{{ cell.actionBg }}; color:{{ cell.actionFg }}">{{ cell.action }}</button>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:28px; text-align:center; font-size:13px; color:var(--ink2)">Nothing matches this filter.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+          <div style="padding:6px 4px 12px; font-size:12px; color:var(--ink2)">{{ tableFooter }}</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isAgreement }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:16px">
+          <sc-for list="{{ agreementGroups }}" as="g" hint-placeholder-count="4">
+            <div style="padding:19px 20px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:12px">
+              <div style="display:flex; align-items:center; gap:9px">
+                <span style="width:30px; height:30px; border-radius:9px; background:var(--g50); color:var(--g700); display:flex; align-items:center; justify-content:center">{{ g.icon }}</span>
+                <h2 style="font-size:15.5px; font-weight:800; margin:0">{{ g.title }}</h2>
+              </div>
+              <sc-for list="{{ g.fields }}" as="f" hint-placeholder-count="4">
+                <div style="display:flex; flex-direction:column; gap:5px">
+                  <label style="font-size:11.5px; font-weight:700; color:var(--ink2)">{{ f.label }}</label>
+                  <input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.placeholder }}" style="padding:10px 15px; border-radius:12px; border:1px solid var(--line); background:var(--soft); font-size:13.5px; color:var(--ink); outline:none">
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+
+          <div style="padding:19px 20px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); display:flex; flex-direction:column; gap:12px">
+            <div style="display:flex; align-items:center; gap:9px">
+              <span style="width:30px; height:30px; border-radius:9px; background:var(--g50); color:var(--g700); display:flex; align-items:center; justify-content:center">{{ termsIcon }}</span>
+              <h2 style="font-size:15.5px; font-weight:800; margin:0">Payment terms</h2>
+            </div>
+            <div style="display:flex; gap:5px; padding:4px; background:var(--soft); border-radius:999px">
+              <sc-for list="{{ planOptions }}" as="p" hint-placeholder-count="3">
+                <button onClick="{{ p.select }}" style="flex:1; border:0; cursor:pointer; border-radius:999px; padding:9px 10px; font-size:12.5px; font-weight:700; background:{{ p.bg }}; color:{{ p.fg }}">{{ p.label }}</button>
+              </sc-for>
+            </div>
+            <sc-for list="{{ termFields }}" as="f" hint-placeholder-count="2">
+              <div style="display:flex; flex-direction:column; gap:5px">
+                <label style="font-size:11.5px; font-weight:700; color:var(--ink2)">{{ f.label }}</label>
+                <input value="{{ f.value }}" onChange="{{ f.onChange }}" style="padding:10px 15px; border-radius:12px; border:1px solid var(--line); background:var(--soft); font-size:13.5px; font-weight:700; color:var(--ink); outline:none">
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:19px 22px; border-radius:var(--r-lg); background:var(--g900); color:#fff; display:flex; gap:24px; flex-wrap:wrap; align-items:center">
+          <sc-for list="{{ agreementSummary }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex; flex-direction:column; gap:3px; min-width:130px">
+              <span style="font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.6)">{{ s.label }}</span>
+              <span class="num" style="font-size:24px; font-weight:800; letter-spacing:-.6px">{{ s.value }}</span>
+              <span style="font-size:11.5px; color:rgba(255,255,255,.7)">{{ s.note }}</span>
+            </div>
+          </sc-for>
+          <div style="flex:1"></div>
+          <button class="btnp" onClick="{{ saveAgreement }}" style="border:0; cursor:pointer; border-radius:999px; padding:13px 26px; font-size:14px; font-weight:800; background:var(--g500); color:#fff">Save agreement</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:16px">
+        <sc-for list="{{ reportTiles }}" as="r" hint-placeholder-count="8">
+          <div class="trow" onClick="{{ r.open }}" style="padding:19px 20px; border-radius:var(--r-lg); background:var(--panel); box-shadow:var(--sh); cursor:pointer; display:flex; flex-direction:column; gap:9px">
+            <div style="display:flex; align-items:center; gap:10px">
+              <span style="width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:{{ r.iconBg }}; color:{{ r.iconFg }}">{{ r.icon }}</span>
+              <span style="flex:1; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ink3)">{{ r.group }}</span>
+              <span style="display:flex; color:var(--ink3)">{{ arrowIcon }}</span>
+            </div>
+            <span style="font-size:15.5px; font-weight:800">{{ r.name }}</span>
+            <span style="font-size:12px; line-height:1.5; color:var(--ink2)">{{ r.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; justify-content:center; padding-bottom:8px">
+        <div style="width:382px; max-width:100%; border-radius:30px; background:var(--panel); box-shadow:0 12px 40px rgba(16,24,40,.14); overflow:hidden; display:flex; flex-direction:column">
+          <div style="padding:18px 20px 16px; background:var(--g900); color:#fff">
+            <div style="display:flex; align-items:center; gap:9px">
+              <span style="width:28px; height:28px; border-radius:9px; background:rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center">{{ appIcon }}</span>
+              <div style="display:flex; flex-direction:column; line-height:1.25">
+                <span style="font-size:13px; font-weight:700">{{ mobileOfficer }}</span>
+                <span style="font-size:11px; color:rgba(255,255,255,.65)">AVO · {{ monthLabel }} round</span>
+              </div>
+            </div>
+            <div class="num" style="display:flex; gap:18px; margin-top:15px">
+              <div style="display:flex; flex-direction:column">
+                <span style="font-size:11px; color:rgba(255,255,255,.65)">Collected</span>
+                <span style="font-size:18px; font-weight:800">{{ collectedFmt }}</span>
+              </div>
+              <div style="display:flex; flex-direction:column">
+                <span style="font-size:11px; color:rgba(255,255,255,.65)">Outstanding</span>
+                <span style="font-size:18px; font-weight:800; color:var(--g300)">{{ outstandingFmt }}</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:15px 16px 20px; display:flex; flex-direction:column; gap:12px">
+            <div style="display:flex; align-items:center; gap:9px; padding:10px 15px; border-radius:999px; background:var(--soft); color:var(--ink3)">
+              {{ searchIcon }}
+              <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search my customers…" style="flex:1; min-width:0; border:0; background:transparent; font-size:14px; color:var(--ink); outline:none">
+            </div>
+            <sc-for list="{{ mobileRows }}" as="c" hint-placeholder-count="4">
+              <div style="padding:14px 15px; border-radius:18px; background:#fff; border:1px solid var(--line); display:flex; flex-direction:column; gap:9px">
+                <div style="display:flex; align-items:center; gap:9px">
+                  <span style="width:4px; height:30px; border-radius:999px; flex:0 0 auto; background:{{ c.edge }}"></span>
+                  <span style="font-size:14.5px; font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.name }}</span>
+                  <span style="font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; background:{{ c.chipBg }}; color:{{ c.chipFg }}">{{ c.statusLabel }}</span>
+                </div>
+                <div style="font-size:12px; color:var(--ink2)">Acc {{ c.acc }} · {{ c.cell }} · {{ c.area }}</div>
+                <div class="num" style="display:flex; gap:16px">
+                  <div style="display:flex; flex-direction:column">
+                    <span style="font-size:11px; color:var(--ink3)">Due now</span>
+                    <span style="font-size:17px; font-weight:800; color:{{ c.dueFg }}">{{ c.dueFmt }}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column">
+                    <span style="font-size:11px; color:var(--ink3)">Remaining</span>
+                    <span style="font-size:17px; font-weight:700">{{ c.remainingFmt }}</span>
+                  </div>
+                </div>
+                <div style="display:flex; gap:8px">
+                  <button class="btnp" onClick="{{ c.collect }}" style="flex:1; border:0; cursor:pointer; border-radius:999px; padding:12px; display:flex; align-items:center; justify-content:center; gap:7px; font-size:13.5px; font-weight:700; background:{{ c.actionBg }}; color:{{ c.actionFg }}">{{ c.collectIcon }}{{ c.actionLabel }}</button>
+                  <button class="btng" onClick="{{ c.remind }}" style="border:1px solid var(--line); cursor:pointer; border-radius:999px; width:46px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--g700)">{{ c.msgIcon }}</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <sc-if value="{{ payOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; background:rgba(16,24,40,.42); display:flex; align-items:center; justify-content:center; padding:22px; z-index:40">
+      <div style="width:452px; max-width:100%; padding:24px 26px; border-radius:24px; background:#fff; box-shadow:0 24px 60px rgba(16,24,40,.24); display:flex; flex-direction:column; gap:15px">
+        <div style="display:flex; align-items:flex-start; gap:12px">
+          <span style="width:38px; height:38px; flex:0 0 auto; border-radius:12px; background:var(--g50); color:var(--g700); display:flex; align-items:center; justify-content:center">{{ cashIcon }}</span>
+          <div style="flex:1; min-width:0">
+            <h2 style="font-size:19px; font-weight:800; margin:0">Collect from {{ payName }}</h2>
+            <div style="font-size:12.5px; color:var(--ink2); margin-top:3px">Acc {{ payAcc }} · {{ payPlan }} · AVO {{ payAvo }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:11px">
+          <div style="flex:1; padding:13px 15px; border-radius:var(--r-md); background:var(--soft)">
+            <div style="font-size:11px; font-weight:700; color:var(--ink3)">Monthly</div>
+            <div class="num" style="font-size:18px; font-weight:800; margin-top:2px">{{ payMonthly }}</div>
+          </div>
+          <div style="flex:1; padding:13px 15px; border-radius:var(--r-md); background:var(--g50)">
+            <div style="font-size:11px; font-weight:700; color:var(--g700)">Due now</div>
+            <div class="num" style="font-size:18px; font-weight:800; margin-top:2px; color:var(--g900)">{{ payDue }}</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:7px">
+          <label style="font-size:12.5px; font-weight:700">Amount received</label>
+          <input value="{{ payAmount }}" onChange="{{ onPayAmount }}" style="padding:13px 17px; border-radius:14px; border:1px solid var(--line); background:var(--soft); font-size:17px; font-weight:800; color:var(--ink); outline:none">
+          <div style="display:flex; gap:7px; flex-wrap:wrap">
+            <sc-for list="{{ payQuick }}" as="q" hint-placeholder-count="3">
+              <button onClick="{{ q.set }}" style="border:1px solid var(--line); cursor:pointer; border-radius:999px; padding:7px 13px; font-size:12px; font-weight:700; background:#fff; color:var(--ink2)">{{ q.label }}</button>
+            </sc-for>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; padding:10px 13px; border-radius:12px; background:{{ payHintBg }}; color:{{ payHintFg }}">{{ payHint }}</div>
+        </div>
+        <div style="display:flex; gap:9px; justify-content:flex-end">
+          <button onClick="{{ closePay }}" style="border:1px solid var(--line); cursor:pointer; border-radius:999px; padding:11px 20px; font-size:13.5px; font-weight:700; background:#fff; color:var(--ink2)">Cancel</button>
+          <button class="btnp" onClick="{{ confirmPay }}" style="border:0; cursor:pointer; border-radius:999px; padding:11px 24px; font-size:13.5px; font-weight:800; background:var(--g600); color:#fff">Post receipt</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; left:50%; bottom:26px; transform:translateX(-50%); display:flex; align-items:center; gap:9px; padding:13px 22px; border-radius:999px; background:var(--ink); color:#fff; font-size:13.5px; font-weight:600; box-shadow:0 12px 32px rgba(16,24,40,.28); z-index:50">{{ toastIcon }}{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;shopName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Khalil Electronics&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Shop&quot;},&quot;windowEnd&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;min&quot;:3,&quot;max&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Recovery rules&quot;}}">
+const MONTHS = [
+  { key: "2026-07", label: "Jul 2026" },
+  { key: "2026-08", label: "Aug 2026" },
+  { key: "2026-09", label: "Sep 2026" }
+];
+
+const CUSTOMERS = [
+  { id: 1, acc: "100860", name: "Adil Khan", cell: "0311-4544577", nic: "17301-4455778-1", area: "Tehkal Payan", g1: "Asad Khan", g1c: "0312-4440014", g2: "Wasif Khan", g2c: "0325-4447852", avo: "Israr Ali", plan: 12, price: 85000, advance: 7500, monthly: 7045, paid: 4, carry: 0, state: "due", opened: "2026-05" },
+  { id: 2, acc: "100817", name: "M. Hamza", cell: "0311-3708178", nic: "17101-8890021-5", area: "Kohat Road", g1: "Alam Zeb", g1c: "0316-9546112", g2: "Jan Mir", g2c: "0251-8489701", avo: "Israr Ali", plan: 12, price: 35000, advance: 2614, monthly: 2699, paid: 1, carry: 0, state: "paid", opened: "2026-09" },
+  { id: 3, acc: "100103", name: "Fawad Khalil", cell: "0303-8974008", nic: "17301-1122334-9", area: "University Road", g1: "Zia-ul-Haq", g1c: "0332-9601203", g2: "Jan Mir", g2c: "0251-8489701", avo: "Naveed Khan", plan: 12, price: 120600, advance: 10050, monthly: 10050, paid: 7, carry: 50, state: "short", opened: "2026-02" },
+  { id: 4, acc: "100821", name: "Zia-ul-Haq", cell: "0332-9601203", nic: "17201-5566778-3", area: "Hayatabad", g1: "Badal Masih", g1c: "0315-9345412", g2: "Haroon", g2c: "0328-1901005", avo: "Naveed Khan", plan: 10, price: 63600, advance: 5400, monthly: 6360, paid: 3, carry: 0, state: "due", opened: "2026-06" },
+  { id: 5, acc: "100818", name: "Shahpur Khan", cell: "0315-8585670", nic: "17301-9081726-4", area: "Kamranullah Colony", g1: "Kamranullah", g1c: "0313-9970031", g2: "Asmat Ullah", g2c: "0315-8585670", avo: "Waqar Shah", plan: 10, price: 40800, advance: 4000, monthly: 4080, paid: 2, carry: 1120, state: "overdue", opened: "2026-04" },
+  { id: 6, acc: "100590", name: "Dawat Ullah", cell: "0319-6339293", nic: "17101-3344556-7", area: "Malak Sajjad Town", g1: "Nadeem", g1c: "0333-9223071", g2: "Imran", g2c: "0346-8889983", avo: "Waqar Shah", plan: 12, price: 88200, advance: 7350, monthly: 7350, paid: 5, carry: 0, state: "due", opened: "2026-03" },
+  { id: 7, acc: "100620", name: "Tariq Khan", cell: "0309-9746024", nic: "17301-7788990-2", area: "Faqirabad", g1: "Saifullah", g1c: "0315-9945590", g2: "Hammad", g2c: "0319-9412275", avo: "Israr Ali", plan: 12, price: 42000, advance: 3500, monthly: 3500, paid: 6, carry: 0, state: "paid", opened: "2026-03" },
+  { id: 8, acc: "100652", name: "Sajjad ur Rehman", cell: "0342-9120212", nic: "17201-2233445-8", area: "Gulbahar", g1: "Zeeshan", g1c: "0312-9808066", g2: "Saeed Ahmad", g2c: "0311-9400706", avo: "Rehan Gul", plan: 12, price: 37800, advance: 3150, monthly: 3150, paid: 2, carry: 0, state: "default", opened: "2026-02" },
+  { id: 9, acc: "100663", name: "Adnan Masih", cell: "0311-0193586", nic: "17301-6677889-1", area: "Kohat Road", g1: "Raheem", g1c: "0314-9714513", g2: "Razi Ullah", g2c: "0315-0617488", avo: "Rehan Gul", plan: 10, price: 72000, advance: 7100, monthly: 7200, paid: 4, carry: 0, state: "due", opened: "2026-05" },
+  { id: 10, acc: "100667", name: "Shehbaz Ghouri", cell: "0332-9601203", nic: "17101-4455667-6", area: "Pishtakhara", g1: "Badal Masih", g1c: "0315-9340424", g2: "Adnan", g2c: "0311-0193586", avo: "Naveed Khan", plan: 12, price: 40800, advance: 3400, monthly: 3400, paid: 8, carry: 0, state: "short", opened: "2026-01" },
+  { id: 11, acc: "100678", name: "Aftab Jehan", cell: "0346-9808332", nic: "17301-1231234-0", area: "Charsadda Road", g1: "Shabir ul Haq", g1c: "0346-9030490", g2: "Qaiser", g2c: "0349-9139213", avo: "Waqar Shah", plan: 12, price: 196800, advance: 16400, monthly: 16400, paid: 3, carry: 0, state: "overdue", opened: "2026-06" },
+  { id: 12, acc: "100683", name: "Muhammad Saleem", cell: "0335-5499490", nic: "17201-9988776-5", area: "Warsak Road", g1: "Sadaqat", g1c: "0321-9004653", g2: "M. Abbas", g2c: "0370-8875710", avo: "Rehan Gul", plan: 12, price: 157000, advance: 17100, monthly: 13084, paid: 9, carry: 0, state: "due", opened: "2026-01" }
+];
+
+const STATES = {
+  paid:    { label: "Paid",       edge: "var(--g500)",  chipBg: "var(--g50)",    chipFg: "var(--g700)",  ic: "check" },
+  short:   { label: "Short paid", edge: "var(--amber)", chipBg: "var(--amber50)",chipFg: "#8a5a10",      ic: "warn" },
+  due:     { label: "Due",        edge: "#cbd2dc",      chipBg: "var(--soft)",   chipFg: "var(--ink2)",  ic: "calendar" },
+  overdue: { label: "Overdue",    edge: "#e0761f",      chipBg: "var(--amber50)",chipFg: "#9a4a08",      ic: "alert" },
+  default: { label: "Defaulter",  edge: "var(--red)",   chipBg: "var(--red50)",  chipFg: "var(--red)",   ic: "alert" }
+};
+
+const OFFICERS = [
+  { name: "Israr Ali", role: "AVO · verification + recovery", zone: "Tehkal / University Rd" },
+  { name: "Naveed Khan", role: "AVO · recovery", zone: "Hayatabad / Pishtakhara" },
+  { name: "Waqar Shah", role: "AVO · recovery", zone: "Charsadda Rd / Malak Sajjad" },
+  { name: "Rehan Gul", role: "AVO · verification", zone: "Kohat Rd / Gulbahar" }
+];
+
+const PRODUCTS = [
+  { name: "Samsung Galaxy S24", cat: "Mobile", vendor: "Rehman Mobile", cost: 210000, price: 248000, stock: 4, min: 2 },
+  { name: "Redmi Note 50", cat: "Mobile", vendor: "Rehman Mobile", cost: 42000, price: 52000, stock: 11, min: 4 },
+  { name: "Infinix Note 8", cat: "Mobile", vendor: "Rehman Mobile", cost: 25000, price: 35000, stock: 7, min: 3 },
+  { name: "Tecno Spark 50", cat: "Mobile", vendor: "Rehman Mobile", cost: 28000, price: 37800, stock: 2, min: 3 },
+  { name: "Haier 12 cft fridge", cat: "Fridge", vendor: "Khyber Home Appliance", cost: 96000, price: 120600, stock: 3, min: 2 },
+  { name: "Dawlance 1.5 ton AC", cat: "AC", vendor: "Khyber Home Appliance", cost: 148000, price: 178000, stock: 1, min: 2 },
+  { name: "Ecostar LED 55\"", cat: "LED", vendor: "Al-Noor Traders", cost: 82000, price: 99000, stock: 5, min: 2 },
+  { name: "Honda CD 70", cat: "Bike", vendor: "Frontier Motors", cost: 74000, price: 88200, stock: 2, min: 1 },
+  { name: "AGS battery 27 plate", cat: "Battery", vendor: "Arsalan A2Z Battery", cost: 21000, price: 26000, stock: 9, min: 4 },
+  { name: "Phoenix XP 220", cat: "Battery", vendor: "Arsalan A2Z Battery", cost: 17500, price: 22000, stock: 6, min: 3 }
+];
+
+const VENDORS = [
+  { name: "Rehman Mobile", cell: "0333-9223071", bills: 14, payable: 25000, last: "29 Aug 2026" },
+  { name: "Arsalan A2Z Battery", cell: "0315-9340424", bills: 6, payable: 0, last: "21 Aug 2026" },
+  { name: "Khyber Home Appliance", cell: "091-5701234", bills: 9, payable: 186000, last: "02 Sep 2026" },
+  { name: "Al-Noor Traders", cell: "0345-1122334", bills: 4, payable: 48000, last: "28 Aug 2026" },
+  { name: "Frontier Motors", cell: "0300-9087612", bills: 3, payable: 0, last: "11 Aug 2026" }
+];
+
+const EXPENSES = [
+  { cat: "Shop rent", desc: "September rent", amount: 65000, acc: "Meezan Bank", date: "01 Sep 2026" },
+  { cat: "Salaries", desc: "AVO field allowance (4 officers)", amount: 24000, acc: "Cash in hand", date: "02 Sep 2026" },
+  { cat: "Fuel", desc: "Bike fuel — recovery rounds", amount: 4600, acc: "Cash in hand", date: "04 Sep 2026" },
+  { cat: "Utilities", desc: "WAPDA bill", amount: 18700, acc: "Meezan Bank", date: "04 Sep 2026" },
+  { cat: "Marketing", desc: "WhatsApp bulk pack + printing", amount: 3200, acc: "JazzCash", date: "05 Sep 2026" },
+  { cat: "Misc", desc: "Shop miscellaneous", amount: 1450, acc: "Cash in hand", date: "05 Sep 2026" }
+];
+
+const EMPLOYEES = [
+  { name: "Israr Ali", role: "AVO", salary: 42000, joined: "Mar 2024", cell: "0301-2233445" },
+  { name: "Naveed Khan", role: "AVO", salary: 40000, joined: "Jul 2024", cell: "0302-8877665" },
+  { name: "Waqar Shah", role: "AVO", salary: 38000, joined: "Jan 2025", cell: "0313-4455667" },
+  { name: "Rehan Gul", role: "AVO", salary: 38000, joined: "Feb 2025", cell: "0345-9988776" },
+  { name: "Sohail Ahmad", role: "Sales officer", salary: 45000, joined: "Nov 2023", cell: "0333-1122998" },
+  { name: "Bilal Yousaf", role: "Sales officer", salary: 43000, joined: "Apr 2025", cell: "0311-5566447" },
+  { name: "Imran Shah", role: "Accountant", salary: 55000, joined: "Aug 2022", cell: "0300-7788112" },
+  { name: "Kashif Nawaz", role: "Shop manager", salary: 60000, joined: "Jun 2021", cell: "0321-3344556" }
+];
+
+const NAV_GROUPS = [
+  { label: "MENU", items: [["dashboard", "Dashboard", "grid"], ["customers", "Customers", "users"], ["agreements", "New agreement", "file"], ["receipts", "Receipts", "receipt"], ["recovery", "AVO & recovery", "pin"]] },
+  { label: "GENERAL", items: [["products", "Products", "box"], ["vendors", "Vendors & bills", "truck"], ["expenses", "Expenses", "wallet"], ["employees", "Employees", "usercheck"], ["reports", "Reports", "chart"]] }
+];
+
+const ICONS = {
+  grid: ["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"],
+  users: ["c:9,7,4", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M22 21v-2a4 4 0 0 0-3-3.87"],
+  file: ["M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z", "M14 3v5h5", "M9 13h6", "M9 17h4"],
+  receipt: ["M5 2v20l2-1.2L9 22l2-1.2L13 22l2-1.2L17 22V2l-2 1.2L13 2l-2 1.2L9 2 7 3.2z", "M9 8h6", "M9 12h6"],
+  pin: ["M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0", "c:12,10,3"],
+  box: ["M21 8l-9-5-9 5 9 5 9-5z", "M3 8v8l9 5 9-5V8", "M12 13v8"],
+  truck: ["M1 4h14v12H1z", "M15 8h4l4 4v4h-8", "c:5.5,18.5,2", "c:18.5,18.5,2"],
+  wallet: ["M3 7h18v12H3z", "M3 7V5a2 2 0 0 1 2-2h11", "M17 13h2"],
+  usercheck: ["c:9,7,4", "M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2", "M17 11l2 2 4-4"],
+  chart: ["M4 20V10", "M10 20V4", "M16 20v-7", "M22 20H2"],
+  calendar: ["M4 5h16v16H4z", "M8 3v4", "M16 3v4", "M4 10h16"],
+  check: ["c:12,12,9", "M8 12l3 3 5-6"],
+  alert: ["c:12,12,9", "M12 8v4", "M12 16h.01"],
+  warn: ["M12 3l9 16H3z", "M12 9v4", "M12 17h.01"],
+  book: ["M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z", "M18 6h2v14"],
+  send: ["M22 2L11 13", "M22 2l-7 20-4-9-9-4z"],
+  msg: ["M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"],
+  cash: ["M2 7h20v10H2z", "c:12,12,2.5"],
+  trend: ["M3 17l6-6 4 4 8-8", "M17 7h4v4"],
+  plus: ["M12 5v14", "M5 12h14"],
+  sync: ["M21 12a9 9 0 0 1-15 6.7L3 16", "M3 12a9 9 0 0 1 15-6.7L21 8", "M3 21v-5h5", "M21 3v5h-5"],
+  arrow: ["M7 17L17 7", "M9 7h8v8"],
+  menu: ["M3 6h18", "M3 12h18", "M3 18h14"],
+  search: ["c:11,11,7", "M21 21l-4.3-4.3"],
+  mail: ["M3 5h18v14H3z", "M3 6l9 7 9-7"],
+  clock: ["c:12,12,9", "M12 7v5l3 2"],
+  bolt: ["M13 2L4 14h7l-1 8 9-12h-7z"],
+  shield: ["M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", "M9 12l2 2 4-4"],
+  home: ["M4 11l8-7 8 7", "M6 10v10h12V10"]
+};
+
+const icon = (name, size, color, w) =>
+  React.createElement(
+    "svg",
+    { viewBox: "0 0 24 24", width: size || 18, height: size || 18, fill: "none", stroke: color || "currentColor", strokeWidth: w || 2.4, strokeLinecap: "round", strokeLinejoin: "round", style: { flex: "0 0 auto", display: "block" } },
+    (ICONS[name] || ICONS.grid).map((p, i) => {
+      if (p.slice(0, 2) === "c:") {
+        const n = p.split(":")[1].split(",");
+        return React.createElement("circle", { key: i, cx: n[0], cy: n[1], r: n[2] });
+      }
+      return React.createElement("path", { key: i, d: p });
+    })
+  );
+
+const initials = n => n.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
+class Component extends DCLogic {
+  state = {
+    screen: "dashboard",
+    sidebar: true,
+    view: "desktop",
+    month: "2026-09",
+    query: "",
+    avoFilter: "all",
+    risk: "all",
+    customers: CUSTOMERS.map(c => ({ ...c })),
+    receipts: [
+      { id: 101, name: "Tariq Khan", acc: "100620", amount: 3500, avo: "Israr Ali", mode: "Cash", time: "09:40" },
+      { id: 102, name: "M. Hamza", acc: "100817", amount: 2699, avo: "Israr Ali", mode: "JazzCash", time: "10:15" },
+      { id: 103, name: "Shehbaz Ghouri", acc: "100667", amount: 3400, avo: "Naveed Khan", mode: "Cash", time: "11:02" }
+    ],
+    payId: null,
+    payAmount: "",
+    toast: "",
+    form: { name: "", cell: "", nic: "", area: "", g1: "", g1c: "", g2: "", g2c: "", product: "", price: "120600", advance: "10050", plan: 12 }
+  };
+
+  money = n => "Rs " + Math.round(n).toLocaleString("en-US");
+  dueOf = c => (c.state === "paid" ? 0 : c.monthly + c.carry + (c.state === "overdue" ? c.monthly : 0) + (c.state === "default" ? c.monthly * 2 : 0));
+  remainingOf = c => Math.max(0, c.price - c.monthly * c.paid + c.carry);
+
+  toastMsg(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: "" }), 2800);
+  }
+
+  match(c) {
+    const q = this.state.query.trim().toLowerCase();
+    if (!q) return true;
+    return (c.name + " " + c.acc + " " + c.cell + " " + c.g1 + " " + c.g2 + " " + c.area).toLowerCase().includes(q);
+  }
+
+  visible() {
+    return this.state.customers.filter(c => {
+      if (this.state.avoFilter !== "all" && c.avo !== this.state.avoFilter) return false;
+      const r = this.state.risk;
+      if (r === "attention" && !["overdue", "default", "short"].includes(c.state)) return false;
+      if (r !== "all" && r !== "attention" && c.state !== r) return false;
+      return this.match(c);
+    });
+  }
+
+  openPay = c => this.setState({ payId: c.id, payAmount: String(this.dueOf(c)) });
+
+  confirmPay = () => {
+    const c = this.state.customers.find(x => x.id === this.state.payId);
+    if (!c) return;
+    const amount = Math.max(0, Number(String(this.state.payAmount).replace(/[^0-9.]/g, "")) || 0);
+    const carry = Math.max(0, this.dueOf(c) - amount);
+    this.setState(s => ({
+      customers: s.customers.map(x => (x.id !== c.id ? x : { ...x, paid: x.paid + 1, carry, state: carry > 0 ? "short" : "paid" })),
+      receipts: [{ id: Date.now(), name: c.name, acc: c.acc, amount, avo: c.avo, mode: "Cash", time: "just now" }, ...s.receipts],
+      payId: null, payAmount: ""
+    }));
+    this.toastMsg(carry > 0
+      ? this.money(amount) + " received — " + this.money(carry) + " carried to next month"
+      : this.money(amount) + " received — " + c.name + " is clear this month");
+  };
+
+  cell(text, opt) {
+    return Object.assign({ text, sub: "", chip: "", chipBg: "", chipFg: "", align: "left", items: "flex-start", weight: 600, fg: "var(--ink)", cls: "", action: "", actionBg: "var(--g600)", actionFg: "#fff", actionBorder: "0", onAction: null }, opt || {});
+  }
+  right(text, opt) {
+    return this.cell(text, Object.assign({ items: "flex-end", cls: "num" }, opt || {}));
+  }
+  ghost(label, fn) {
+    return this.cell("", { items: "flex-end", action: label, actionBg: "#fff", actionFg: "var(--ink2)", actionBorder: "1px solid var(--line)", onAction: fn });
+  }
+
+  tabDef(key, label, count) {
+    const on = this.state.risk === key;
+    return {
+      key, label, count,
+      bg: on ? "var(--ink)" : "#fff",
+      fg: on ? "#fff" : "var(--ink2)",
+      border: on ? "var(--ink)" : "var(--line)",
+      select: () => this.setState({ risk: key })
+    };
+  }
+
+  statTile(label, value, note, tone, ic) {
+    const T = {
+      hero: ["var(--g900)", "rgba(255,255,255,.72)", "#fff", "rgba(255,255,255,.72)", "rgba(255,255,255,.7)", "rgba(255,255,255,.16)", "#fff"],
+      plain: ["var(--panel)", "var(--ink2)", "var(--ink)", "var(--ink2)", "var(--ink2)", "var(--soft)", "var(--ink2)"],
+      good: ["var(--panel)", "var(--ink2)", "var(--g700)", "var(--g700)", "var(--g600)", "var(--g50)", "var(--g700)"],
+      warn: ["var(--panel)", "var(--ink2)", "#9a4a08", "#9a4a08", "#b06a10", "var(--amber50)", "#9a4a08"]
+    }[tone || "plain"];
+    return { label, value, note, bg: T[0], labelFg: T[1], valueFg: T[2], noteFg: T[3], iconFg: T[4], btnBg: T[5], btnFg: T[6], icon: icon(ic || "chart", 17), noteIcon: null, open: () => this.toastMsg(label + " · " + value) };
+  }
+
+  screenData() {
+    const s = this.state;
+    const all = s.customers;
+    const rows = this.visible();
+    const totalDue = all.reduce((t, c) => t + this.dueOf(c), 0);
+    const collected = s.receipts.reduce((t, r) => t + r.amount, 0);
+    const counts = k => (k === "all" ? all.length : k === "attention" ? all.filter(c => ["overdue", "default", "short"].includes(c.state)).length : all.filter(c => c.state === k).length);
+    const windowEnd = this.props.windowEnd ?? 5;
+
+    if (s.screen === "customers") {
+      return {
+        title: "Customers",
+        hint: rows.length + " of " + all.length + " accounts",
+        primaryLabel: "New agreement", primaryIcon: "plus",
+        primaryAction: () => this.setState({ screen: "agreements" }),
+        months: true, avoFilter: true,
+        tabs: [this.tabDef("all", "All", counts("all")), this.tabDef("attention", "Needs attention", counts("attention")), this.tabDef("due", "Due", counts("due")), this.tabDef("short", "Short paid", counts("short")), this.tabDef("overdue", "Overdue", counts("overdue")), this.tabDef("default", "Defaulter", counts("default")), this.tabDef("paid", "Paid", counts("paid"))],
+        stats: [
+          this.statTile("Due this month", this.money(totalDue), all.filter(c => this.dueOf(c) > 0).length + " accounts open", "hero", "calendar"),
+          this.statTile("Collected", this.money(collected), s.receipts.length + " receipts posted", "good", "check"),
+          this.statTile("Outstanding", this.money(Math.max(0, totalDue - collected)), "Window closes on the " + windowEnd + "th", "warn", "alert"),
+          this.statTile("Shown by filter", this.money(rows.reduce((t, c) => t + this.dueOf(c), 0)), rows.length + " of " + all.length + " rows", "plain", "users")
+        ],
+        tableTitle: "Register · " + (MONTHS.find(m => m.key === s.month) || {}).label,
+        grid: "minmax(190px,1.8fr) minmax(160px,1.4fr) 86px minmax(105px,1fr) minmax(112px,1fr) 112px 100px",
+        cols: [{ label: "Customer", align: "left" }, { label: "Guarantors", align: "left" }, { label: "Plan", align: "left" }, { label: "Monthly", align: "right" }, { label: "Due now", align: "right" }, { label: "Status", align: "left" }, { label: "Action", align: "right" }],
+        rows: rows.map(c => {
+          const st = STATES[c.state];
+          const due = this.dueOf(c);
+          return {
+            cells: [
+              this.cell(c.name, { sub: "Acc " + c.acc + " · " + c.cell, weight: 700 }),
+              this.cell(c.g1 + " / " + c.g2, { sub: c.g1c + " · " + c.g2c, weight: 500 }),
+              this.cell(c.plan + " mo", { sub: c.paid + "/" + c.plan + " paid", weight: 700 }),
+              this.right(this.money(c.monthly), { sub: "price " + this.money(c.price), weight: 600 }),
+              this.right(due ? this.money(due) : "—", { sub: c.carry > 0 ? "incl " + this.money(c.carry) + " carry" : "", weight: 800, fg: ["overdue", "default"].includes(c.state) ? "var(--red)" : "var(--ink)" }),
+              this.cell("", { chip: st.label, chipBg: st.chipBg, chipFg: st.chipFg }),
+              due
+                ? this.cell("", { items: "flex-end", action: "Collect", onAction: () => this.openPay(c) })
+                : this.ghost("Ledger", () => this.toastMsg(c.name + " · ledger " + c.acc + " opened"))
+            ]
+          };
+        }),
+        footer: "Book value " + this.money(all.reduce((t, c) => t + this.remainingOf(c), 0)) + " · " + all.filter(c => c.opened === s.month).length + " new this month"
+      };
+    }
+
+    if (s.screen === "receipts") {
+      const list = s.receipts.filter(r => !s.query || (r.name + r.acc).toLowerCase().includes(s.query.toLowerCase()));
+      const pending = all.filter(c => this.dueOf(c) > 0);
+      return {
+        title: "Receipts",
+        hint: list.length + " posted today",
+        primaryLabel: "New receipt", primaryIcon: "plus",
+        primaryAction: () => (pending[0] ? this.openPay(pending[0]) : this.toastMsg("No pending dues this month")),
+        months: true,
+        stats: [
+          this.statTile("Collected today", this.money(collected), list.length + " receipts", "hero", "check"),
+          this.statTile("Outstanding", this.money(Math.max(0, totalDue - collected)), pending.length + " customers pending", "warn", "alert"),
+          this.statTile("Cash in hand", this.money(184500 + collected), "After today's postings", "plain", "cash"),
+          this.statTile("Average receipt", this.money(collected / Math.max(1, list.length)), "Across posted receipts", "plain", "trend")
+        ],
+        tableTitle: "Posted receipts",
+        grid: "86px minmax(180px,1.6fr) minmax(140px,1fr) 110px minmax(112px,1fr) 100px",
+        cols: [{ label: "Receipt", align: "left" }, { label: "Customer", align: "left" }, { label: "Officer", align: "left" }, { label: "Mode", align: "left" }, { label: "Amount", align: "right" }, { label: "Slip", align: "right" }],
+        rows: list.map((r, i) => ({
+          cells: [
+            this.cell("#" + (5100 + i), { sub: r.time, weight: 700, cls: "num" }),
+            this.cell(r.name, { sub: "Acc " + r.acc, weight: 700 }),
+            this.cell(r.avo, { weight: 500 }),
+            this.cell(r.mode, { weight: 500 }),
+            this.right(this.money(r.amount), { weight: 800, fg: "var(--g700)" }),
+            this.ghost("Print", () => this.toastMsg("Receipt slip queued for print · " + r.name))
+          ]
+        })),
+        footer: "Posts to Cash in hand, Meezan Bank or JazzCash"
+      };
+    }
+
+    if (s.screen === "recovery") {
+      return {
+        title: "AVO & recovery",
+        hint: OFFICERS.length + " officers · " + all.length + " accounts",
+        primaryLabel: "Open field app", primaryIcon: "sync",
+        primaryAction: () => this.setState({ view: "mobile" }),
+        months: true,
+        stats: [
+          this.statTile("Recovered today", this.money(collected), s.receipts.length + " receipts from the field", "hero", "check"),
+          this.statTile("Officers", String(OFFICERS.length), "All active today", "plain", "usercheck"),
+          this.statTile("Assigned accounts", String(all.length), "About " + Math.round(all.length / OFFICERS.length) + " per officer", "plain", "users"),
+          this.statTile("Verification pending", "2", "House visits due this week", "warn", "shield")
+        ],
+        tableTitle: "Officer performance",
+        grid: "minmax(180px,1.5fr) minmax(170px,1.4fr) 96px minmax(112px,1fr) minmax(112px,1fr) 104px",
+        cols: [{ label: "Officer", align: "left" }, { label: "Zone", align: "left" }, { label: "Accounts", align: "left" }, { label: "Target", align: "right" }, { label: "Collected", align: "right" }, { label: "Assign", align: "right" }],
+        rows: OFFICERS.map(o => {
+          const mine = all.filter(c => c.avo === o.name);
+          const target = mine.reduce((t, c) => t + this.dueOf(c), 0);
+          const got = s.receipts.filter(r => mine.some(c => c.name === r.name)).reduce((t, r) => t + r.amount, 0);
+          return {
+            cells: [
+              this.cell(o.name, { sub: o.role, weight: 700 }),
+              this.cell(o.zone, { weight: 500 }),
+              this.cell(String(mine.length), { sub: mine.filter(c => this.dueOf(c) > 0).length + " pending", weight: 700, cls: "num" }),
+              this.right(this.money(target), { weight: 600 }),
+              this.right(got ? this.money(got) : "—", { weight: 800, fg: got ? "var(--g700)" : "var(--ink3)" }),
+              this.ghost("Manage", () => this.toastMsg("Assign or move customers for " + o.name))
+            ]
+          };
+        }),
+        footer: "Verification pending: Aftab Jehan, Sajjad ur Rehman"
+      };
+    }
+
+    if (s.screen === "products") {
+      const list = PRODUCTS.filter(p => !s.query || (p.name + p.cat + p.vendor).toLowerCase().includes(s.query.toLowerCase()));
+      return {
+        title: "Products",
+        hint: PRODUCTS.length + " items · 6 categories",
+        primaryLabel: "Add product", primaryIcon: "plus",
+        primaryAction: () => this.toastMsg("Product entry form opened"),
+        months: false,
+        stats: [
+          this.statTile("Stock value", this.money(PRODUCTS.reduce((t, p) => t + p.cost * p.stock, 0)), "At cost price", "hero", "box"),
+          this.statTile("Products", String(PRODUCTS.length), "Across 6 categories", "plain", "grid"),
+          this.statTile("Below minimum", String(PRODUCTS.filter(p => p.stock <= p.min).length), "Reorder needed", "warn", "alert"),
+          this.statTile("Average margin", "19%", "Sale price over cost", "good", "trend")
+        ],
+        tableTitle: "Stock on hand",
+        grid: "minmax(200px,1.8fr) 106px minmax(150px,1.2fr) minmax(102px,1fr) minmax(102px,1fr) 94px 100px",
+        cols: [{ label: "Product", align: "left" }, { label: "Category", align: "left" }, { label: "Vendor", align: "left" }, { label: "Cost", align: "right" }, { label: "Price", align: "right" }, { label: "Stock", align: "right" }, { label: "Action", align: "right" }],
+        rows: list.map(p => ({
+          cells: [
+            this.cell(p.name, { weight: 700 }),
+            this.cell("", { chip: p.cat, chipBg: "var(--soft)", chipFg: "var(--ink2)" }),
+            this.cell(p.vendor, { weight: 500 }),
+            this.right(this.money(p.cost), { weight: 600 }),
+            this.right(this.money(p.price), { weight: 700 }),
+            this.right(String(p.stock), { sub: "min " + p.min, weight: 700, fg: p.stock <= p.min ? "var(--red)" : "var(--ink)" }),
+            this.cell("", { items: "flex-end", action: "Sell", onAction: () => this.toastMsg(p.name + " added to the sale entry") })
+          ]
+        })),
+        footer: PRODUCTS.filter(p => p.stock <= p.min).length + " items below minimum"
+      };
+    }
+
+    if (s.screen === "vendors") {
+      const list = VENDORS.filter(v => !s.query || (v.name + v.cell).toLowerCase().includes(s.query.toLowerCase()));
+      return {
+        title: "Vendors & bills",
+        hint: VENDORS.length + " suppliers",
+        primaryLabel: "New purchase bill", primaryIcon: "plus",
+        primaryAction: () => this.toastMsg("Purchase entry opened"),
+        months: false,
+        stats: [
+          this.statTile("Total payable", this.money(VENDORS.reduce((t, v) => t + v.payable, 0)), VENDORS.filter(v => v.payable > 0).length + " vendors with balance", "hero", "truck"),
+          this.statTile("Vendors", String(VENDORS.length), "Active suppliers", "plain", "users"),
+          this.statTile("Bills this month", "12", "September 2026", "plain", "receipt"),
+          this.statTile("Paid this month", this.money(312000), "From Meezan Bank", "good", "check")
+        ],
+        tableTitle: "Account payables",
+        grid: "minmax(200px,1.7fr) minmax(140px,1.1fr) 96px 130px minmax(112px,1fr) 100px",
+        cols: [{ label: "Vendor", align: "left" }, { label: "Contact", align: "left" }, { label: "Bills", align: "left" }, { label: "Last bill", align: "left" }, { label: "Payable", align: "right" }, { label: "Action", align: "right" }],
+        rows: list.map(v => ({
+          cells: [
+            this.cell(v.name, { weight: 700 }),
+            this.cell(v.cell, { weight: 500, cls: "num" }),
+            this.cell(String(v.bills), { weight: 600, cls: "num" }),
+            this.cell(v.last, { weight: 500, cls: "num" }),
+            this.right(v.payable ? this.money(v.payable) : "Clear", { weight: 800, fg: v.payable ? "var(--red)" : "var(--g700)" }),
+            v.payable
+              ? this.cell("", { items: "flex-end", action: "Pay", onAction: () => this.toastMsg("Payment voucher for " + v.name) })
+              : this.ghost("Ledger", () => this.toastMsg(v.name + " ledger opened"))
+          ]
+        })),
+        footer: "12 bills this month"
+      };
+    }
+
+    if (s.screen === "expenses") {
+      const list = EXPENSES.filter(e => !s.query || (e.cat + e.desc).toLowerCase().includes(s.query.toLowerCase()));
+      const spend = EXPENSES.reduce((t, e) => t + e.amount, 0);
+      return {
+        title: "Expenses",
+        hint: list.length + " vouchers · " + m.label,
+        primaryLabel: "New voucher", primaryIcon: "plus",
+        primaryAction: () => this.toastMsg("Expense voucher opened"),
+        months: true,
+        stats: [
+          this.statTile("Spent this month", this.money(spend), list.length + " vouchers", "hero", "wallet"),
+          this.statTile("Fixed costs", this.money(83700), "Rent and utilities", "plain", "home"),
+          this.statTile("Field & salaries", this.money(24000), "September to date", "plain", "usercheck"),
+          this.statTile("Recovery minus spend", this.money(collected - spend), "Today's cash position", collected - spend >= 0 ? "good" : "warn", "trend")
+        ],
+        tableTitle: "Voucher register",
+        grid: "112px minmax(240px,1.9fr) minmax(140px,1.1fr) minmax(112px,1fr) 100px",
+        cols: [{ label: "Category", align: "left" }, { label: "Description", align: "left" }, { label: "Paid from", align: "left" }, { label: "Amount", align: "right" }, { label: "Action", align: "right" }],
+        rows: list.map(e => ({
+          cells: [
+            this.cell("", { chip: e.cat, chipBg: "var(--soft)", chipFg: "var(--ink2)" }),
+            this.cell(e.desc, { sub: e.date, weight: 600 }),
+            this.cell(e.acc, { weight: 500 }),
+            this.right(this.money(e.amount), { weight: 800 }),
+            this.ghost("Edit", () => this.toastMsg("Voucher opened · " + e.cat))
+          ]
+        })),
+        footer: this.money(spend) + " total"
+      };
+    }
+
+    if (s.screen === "employees") {
+      const list = EMPLOYEES.filter(e => !s.query || (e.name + e.role).toLowerCase().includes(s.query.toLowerCase()));
+      return {
+        title: "Employees",
+        hint: EMPLOYEES.length + " staff · 4 field",
+        primaryLabel: "Add employee", primaryIcon: "plus",
+        primaryAction: () => this.toastMsg("Employee form opened"),
+        months: false,
+        stats: [
+          this.statTile("Monthly payroll", this.money(EMPLOYEES.reduce((t, e) => t + e.salary, 0)), "Gross, " + EMPLOYEES.length + " staff", "hero", "wallet"),
+          this.statTile("Field officers", "4", "Holding " + all.length + " accounts", "plain", "pin"),
+          this.statTile("Office staff", "4", "2 sales · accountant · manager", "plain", "users"),
+          this.statTile("Payroll due", "25 Sep", "20 days from today", "warn", "calendar")
+        ],
+        tableTitle: "Staff register",
+        grid: "minmax(180px,1.6fr) minmax(140px,1.1fr) minmax(140px,1fr) minmax(112px,1fr) 112px 104px",
+        cols: [{ label: "Name", align: "left" }, { label: "Role", align: "left" }, { label: "Contact", align: "left" }, { label: "Salary", align: "right" }, { label: "Joined", align: "left" }, { label: "Action", align: "right" }],
+        rows: list.map(e => ({
+          cells: [
+            this.cell(e.name, { weight: 700 }),
+            this.cell("", { chip: e.role, chipBg: e.role === "AVO" ? "var(--g50)" : "var(--soft)", chipFg: e.role === "AVO" ? "var(--g700)" : "var(--ink2)" }),
+            this.cell(e.cell, { weight: 500, cls: "num" }),
+            this.right(this.money(e.salary), { weight: 700 }),
+            this.cell(e.joined, { weight: 500 }),
+            this.ghost("Profile", () => this.toastMsg(e.name + " · profile opened"))
+          ]
+        })),
+        footer: "4 field logins · 4 desktop only"
+      };
+    }
+
+    return null;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const m = MONTHS.find(x => x.key === s.month) || MONTHS[2];
+    const all = s.customers;
+    const totalDue = all.reduce((t, c) => t + this.dueOf(c), 0);
+    const collected = s.receipts.reduce((t, r) => t + r.amount, 0);
+    const attention = all.filter(c => ["overdue", "default"].includes(c.state)).length;
+    const windowEnd = this.props.windowEnd ?? 5;
+    const isMobileView = s.view === "mobile";
+    const sc = this.screenData();
+    const isTable = !!sc && !isMobileView;
+    const isDash = !isMobileView && s.screen === "dashboard";
+    const isAgreement = !isMobileView && s.screen === "agreements";
+    const isReports = !isMobileView && s.screen === "reports";
+
+    const rowify = c => {
+      const st = STATES[c.state];
+      const due = this.dueOf(c);
+      return {
+        ...c, statusLabel: st.label, edge: st.edge, chipBg: st.chipBg, chipFg: st.chipFg, chipIcon: icon(st.ic, 12, undefined, 3),
+        dashMeta: "Acc " + c.acc + " · " + c.paid + "/" + c.plan + " paid · " + c.avo,
+        dueFmt: due ? this.money(due) : "Settled",
+        dueFg: due ? (["overdue", "default"].includes(c.state) ? "var(--red)" : "var(--ink)") : "var(--g700)",
+        remainingFmt: this.money(this.remainingOf(c)),
+        remainingNote: this.money(this.remainingOf(c)) + " left",
+        actionLabel: due ? "Collect" : "Ledger",
+        actionBg: due ? "var(--g600)" : "#fff",
+        actionFg: due ? "#fff" : "var(--ink2)",
+        collectIcon: icon(due ? "cash" : "book", 15),
+        msgIcon: icon("msg", 16),
+        collect: () => (due ? this.openPay(c) : this.toastMsg(c.name + " is clear for " + m.label)),
+        remind: () => this.toastMsg("WhatsApp reminder queued for " + c.name + " · " + c.cell)
+      };
+    };
+
+    const dashRows = this.visible().map(rowify);
+    const dashCount = k => (k === "all" ? all.length : k === "attention" ? all.filter(c => ["overdue", "default", "short"].includes(c.state)).length : all.filter(c => c.state === k).length);
+
+    const payC = all.find(c => c.id === s.payId);
+    const payDue = payC ? this.dueOf(payC) : 0;
+    const typed = Number(String(s.payAmount).replace(/[^0-9.]/g, "")) || 0;
+    const gap = payDue - typed;
+
+    const f = s.form;
+    const price = Number(String(f.price).replace(/[^0-9.]/g, "")) || 0;
+    const advance = Number(String(f.advance).replace(/[^0-9.]/g, "")) || 0;
+    const plan = f.plan;
+    const monthly = plan > 1 ? Math.round(price / plan) : 0;
+    const fld = (label, key, placeholder) => ({ label, value: f[key], placeholder: placeholder || "", onChange: e => this.setState(st => ({ form: { ...st.form, [key]: e.target.value } })) });
+
+    return {
+      shopName: this.props.shopName ?? "Khalil Electronics",
+      monthLabel: m.label,
+      windowNote: "Collection window · 1–" + windowEnd + " " + m.label.slice(0, 3),
+
+      logoIcon: icon("bolt", 18, undefined, 2.2),
+      appIcon: icon("pin", 16),
+      menuIcon: icon("menu", 18),
+      searchIcon: icon("search", 16),
+      mailIcon: icon("mail", 17),
+      clockIcon: icon("clock", 14),
+      arrowIcon: icon("arrow", 14),
+      cashIcon: icon("cash", 18),
+      termsIcon: icon("receipt", 16),
+      toastIcon: icon("check", 16),
+
+      railWidth: s.sidebar ? "228px" : "76px",
+      sidebarOpen: s.sidebar,
+      toggleSidebar: () => this.setState({ sidebar: !s.sidebar }),
+
+      isMobile: isMobileView,
+      showDesktop: () => this.setState({ view: "desktop" }),
+      showMobile: () => this.setState({ view: "mobile", query: "" }),
+      deskBg: !isMobileView ? "var(--ink)" : "transparent",
+      deskFg: !isMobileView ? "#fff" : "var(--ink2)",
+      mobBg: isMobileView ? "var(--ink)" : "transparent",
+      mobFg: isMobileView ? "#fff" : "var(--ink2)",
+      mobileOfficer: "Israr Ali",
+      openMessages: () => this.toastMsg("Message centre · WhatsApp and SMS templates"),
+      openRecovery: () => this.setState({ screen: "recovery", view: "desktop" }),
+
+      navGroups: NAV_GROUPS.map(g => ({
+        label: g.label,
+        showLabel: s.sidebar,
+        items: g.items.map(([key, label, ic]) => {
+          const on = !isMobileView && s.screen === key;
+          const badge = { customers: all.length, receipts: s.receipts.length, recovery: attention || "" }[key] || "";
+          return {
+            label, icon: icon(ic, 17), showText: s.sidebar,
+            justify: s.sidebar ? "flex-start" : "center",
+            bg: on ? "var(--g50)" : "transparent",
+            fg: on ? "var(--g900)" : "var(--ink2)",
+            iconFg: on ? "var(--g600)" : "var(--ink3)",
+            badge: s.sidebar ? badge : "",
+            badgeBg: key === "recovery" && attention ? "var(--red50)" : "var(--soft)",
+            badgeFg: key === "recovery" && attention ? "var(--red)" : "var(--ink2)",
+            go: () => this.setState({ screen: key, view: "desktop", query: "", risk: "all" })
+          };
+        })
+      })),
+
+      months: MONTHS.map(x => ({
+        label: x.label,
+        bg: x.key === s.month ? "var(--ink)" : "transparent",
+        fg: x.key === s.month ? "#fff" : "var(--ink2)",
+        select: () => this.setState({ month: x.key })
+      })),
+      showMonths: isMobileView ? false : isDash ? true : isTable ? !!sc.months : false,
+
+      screenTitle: isMobileView ? "My customers" : isDash ? "Dashboard" : isAgreement ? "New agreement" : isReports ? "Reports" : sc.title,
+      screenHint: isMobileView
+        ? "Israr Ali · " + m.label
+        : isDash
+          ? m.label + " · " + all.filter(c => this.dueOf(c) > 0).length + " open · " + attention + " behind"
+          : isAgreement
+            ? "Customer, guarantors, products"
+            : isReports
+              ? "8 reports · " + m.label
+              : sc.hint,
+      primaryLabel: isMobileView ? "Sync now" : isDash ? "Send month reminders" : isAgreement ? "Clear form" : isReports ? "Export month pack" : sc.primaryLabel,
+      primaryIcon: icon(isMobileView ? "sync" : isDash ? "send" : isAgreement ? "file" : isReports ? "chart" : sc.primaryIcon || "plus", 16),
+      primaryAction: isMobileView
+        ? () => this.toastMsg("Field data synced · " + all.length + " accounts up to date")
+        : isDash
+          ? () => this.toastMsg("WhatsApp reminder queued to " + all.filter(c => this.dueOf(c) > 0).length + " customers for " + m.label)
+          : isAgreement
+            ? () => this.setState({ form: { name: "", cell: "", nic: "", area: "", g1: "", g1c: "", g2: "", g2c: "", product: "", price: "", advance: "", plan: 12 } })
+            : isReports
+              ? () => this.toastMsg("Month pack exported · " + m.label)
+              : sc.primaryAction,
+
+      isDashboard: isDash,
+      isTable: isTable,
+      isAgreement: isAgreement,
+      isReports: isReports,
+
+      kpis: [
+        this.statTile("Due this month", this.money(totalDue), all.filter(c => this.dueOf(c) > 0).length + " accounts", "hero", "calendar"),
+        this.statTile("Collected today", this.money(collected), s.receipts.length + " receipts", "good", "check"),
+        this.statTile("Outstanding", this.money(Math.max(0, totalDue - collected)), "By the " + windowEnd + "th", "warn", "alert"),
+        this.statTile("Behind", String(attention), "1 defaulter", "plain", "shield")
+      ],
+
+      legend: [
+        { label: "Paid", color: "var(--g500)" },
+        { label: "Short paid", color: "var(--amber)" },
+        { label: "Due 1–" + windowEnd, color: "#cbd2dc" },
+        { label: "Overdue", color: "#e0761f" },
+        { label: "Defaulter 2+", color: "var(--red)" }
+      ],
+      dashGrid: "minmax(160px,2.2fr) 132px minmax(112px,1fr) 158px",
+      dashTabs: [this.tabDef("all", "All", dashCount("all")), this.tabDef("attention", "Attention", dashCount("attention")), this.tabDef("due", "Due", dashCount("due")), this.tabDef("paid", "Paid", dashCount("paid"))],
+      dashRows,
+      noDashRows: dashRows.length === 0,
+      dashCountNote: dashRows.length + " of " + all.length + " accounts shown",
+      dashFooter: this.money(all.reduce((t, c) => t + this.remainingOf(c), 0)) + " on the books · " + all.length + " live agreements",
+
+      officers: OFFICERS.map(o => {
+        const mine = all.filter(c => c.avo === o.name);
+        const target = mine.reduce((t, c) => t + this.dueOf(c) + (c.state === "paid" ? c.monthly : 0), 0);
+        const got = s.receipts.filter(r => mine.some(c => c.name === r.name)).reduce((t, r) => t + r.amount, 0);
+        const pct = target ? Math.min(100, Math.round((got / target) * 100)) : 0;
+        return {
+          name: o.name, pct, initials: initials(o.name),
+          barBg: pct >= 60 ? "var(--g500)" : pct >= 25 ? "var(--amber)" : "#e0761f",
+          pctFg: pct >= 60 ? "var(--g700)" : "var(--ink2)",
+          collectedFmt: this.money(got), targetFmt: this.money(target),
+          assigned: mine.length, pending: mine.filter(c => this.dueOf(c) > 0).length
+        };
+      }),
+
+      receipts: s.receipts.slice(0, 6).map(r => ({
+        name: r.name, meta: r.avo + " · " + r.mode + " · " + r.time,
+        amountFmt: this.money(r.amount), initials: initials(r.name)
+      })),
+      collectedFmt: this.money(collected),
+      outstandingFmt: this.money(Math.max(0, totalDue - collected)),
+
+      screenStats: isTable ? sc.stats : [],
+      tableTitle: isTable ? sc.tableTitle : "",
+      tableGrid: isTable ? sc.grid : "1fr",
+      tableCols: isTable ? sc.cols.map((c, i) => ({ ...c, padRight: i === sc.cols.length - 1 ? "14px" : "0px" })) : [],
+      tableRows: isTable ? sc.rows : [],
+      tableFooter: isTable ? sc.footer : "",
+      noRows: isTable && sc.rows.length === 0,
+      hasAvoFilter: isTable && !!sc.avoFilter,
+      hasTabs: isTable && !!sc.tabs,
+      tabs: isTable && sc.tabs ? sc.tabs : [],
+
+      query: s.query,
+      onQuery: e => this.setState({ query: e.target.value }),
+      avoFilter: s.avoFilter,
+      onAvo: e => this.setState({ avoFilter: e.target.value }),
+      avoOptions: [{ value: "all", label: "All officers" }].concat(OFFICERS.map(o => ({ value: o.name, label: o.name }))),
+
+      mobileRows: all.filter(c => c.avo === "Israr Ali" || this.dueOf(c) > 0).filter(c => this.match(c)).map(rowify),
+
+      agreementGroups: [
+        { title: "Customer", icon: icon("users", 16), fields: [fld("Full name", "name", "e.g. Adil Khan"), fld("Cell number", "cell", "0311-4544577"), fld("CNIC", "nic", "17301-4455778-1"), fld("Address", "area", "Tehkal Payan, Peshawar")] },
+        { title: "Guarantor 1", icon: icon("shield", 16), fields: [fld("Name", "g1", "Asad Khan"), fld("Cell / CNIC", "g1c", "0312-4440014")] },
+        { title: "Guarantor 2", icon: icon("shield", 16), fields: [fld("Name", "g2", "Wasif Khan"), fld("Cell / CNIC", "g2c", "0325-4447852")] },
+        { title: "Products", icon: icon("box", 16), fields: [fld("Items sold", "product", "Haier fridge, Redmi Note 50"), fld("Sale price", "price", "120600")] }
+      ],
+      planOptions: [10, 12, 0].map(p => ({
+        label: p ? p + " month" : "Direct",
+        bg: f.plan === p ? "var(--ink)" : "transparent",
+        fg: f.plan === p ? "#fff" : "var(--ink2)",
+        select: () => this.setState(st => ({ form: { ...st.form, plan: p } }))
+      })),
+      termFields: [fld("Sale price", "price"), fld("Advance received", "advance")],
+      agreementSummary: plan
+        ? [
+            { label: "Monthly installment", value: this.money(monthly), note: "sale price ÷ " + plan },
+            { label: "Collect today", value: this.money(advance + monthly), note: "advance + first installment" },
+            { label: "Months remaining", value: String(plan - 1), note: "first due 1 Oct 2026" },
+            { label: "Balance", value: this.money(Math.max(0, price - advance - monthly)), note: "over " + (plan - 1) + " installments" }
+          ]
+        : [
+            { label: "Direct sale", value: this.money(price), note: "full payment at the counter" },
+            { label: "Received", value: this.money(advance), note: "cash or bank" },
+            { label: "Balance", value: this.money(Math.max(0, price - advance)), note: "settle before delivery" }
+          ],
+      saveAgreement: () => this.toastMsg(plan ? "Agreement saved · " + this.money(monthly) + " × " + (plan - 1) + " months" : "Direct sale invoice saved"),
+
+      reportTiles: [
+        { group: "Recovery", name: "Installments received", note: "Month-wise receipts by customer, officer and account.", ic: "check", iconBg: "var(--g50)", iconFg: "var(--g700)" },
+        { group: "Recovery", name: "Installments receivable", note: "Open dues per agreement with guarantor contacts.", ic: "calendar", iconBg: "var(--soft)", iconFg: "var(--ink2)" },
+        { group: "Recovery", name: "Daily recovery sheet", note: "Officer-wise print sheet for the field round.", ic: "pin", iconBg: "var(--soft)", iconFg: "var(--ink2)" },
+        { group: "Recovery", name: "Defaulter list", note: "Two or more missed installments, with visit history.", ic: "alert", iconBg: "var(--red50)", iconFg: "var(--red)" },
+        { group: "Ledgers", name: "Customer ledger", note: "Every invoice, receipt and carry-forward per account.", ic: "book", iconBg: "var(--soft)", iconFg: "var(--ink2)" },
+        { group: "Ledgers", name: "Account payables", note: "Vendor balances and bill history.", ic: "truck", iconBg: "var(--soft)", iconFg: "var(--ink2)" },
+        { group: "Stock", name: "Inventory & reorder", note: "Stock on hand, value at cost, below-minimum list.", ic: "box", iconBg: "var(--soft)", iconFg: "var(--ink2)" },
+        { group: "Accounts", name: "Profit & loss", note: "Sales, recovery, expenses and margin for the month.", ic: "trend", iconBg: "var(--g50)", iconFg: "var(--g700)" }
+      ].map(r => ({ ...r, icon: icon(r.ic, 16), open: () => this.toastMsg(r.name + " · " + m.label + " generated") })),
+
+      payOpen: !!payC,
+      payName: payC ? payC.name : "",
+      payAcc: payC ? payC.acc : "",
+      payPlan: payC ? payC.plan + " month plan · " + payC.paid + " paid" : "",
+      payAvo: payC ? payC.avo : "",
+      payMonthly: payC ? this.money(payC.monthly) : "",
+      payDue: this.money(payDue),
+      payAmount: s.payAmount,
+      onPayAmount: e => this.setState({ payAmount: e.target.value }),
+      payQuick: payC
+        ? [
+            { label: "Full " + this.money(payDue), set: () => this.setState({ payAmount: String(payDue) }) },
+            { label: "Monthly only", set: () => this.setState({ payAmount: String(payC.monthly) }) },
+            { label: "Half", set: () => this.setState({ payAmount: String(Math.round(payDue / 2)) }) }
+          ]
+        : [],
+      payHint: gap > 0
+        ? this.money(gap) + " short → carries to next month"
+        : gap < 0
+          ? this.money(-gap) + " extra → reduces next month"
+          : "Exact amount, nothing carried",
+      payHintBg: gap > 0 ? "var(--amber50)" : gap < 0 ? "var(--g50)" : "var(--soft)",
+      payHintFg: gap > 0 ? "#8a5a10" : gap < 0 ? "var(--g700)" : "var(--ink2)",
+      closePay: () => this.setState({ payId: null, payAmount: "" }),
+      confirmPay: this.confirmPay,
+
+      toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
