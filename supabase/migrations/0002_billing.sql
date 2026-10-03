@@ -20,7 +20,7 @@ begin
   insert into agreements (customer_id, sale_type, plan_months, total_price, advance, monthly, first_due, sales_officer_id,
                           status)
   values (p_customer, p_sale, p_plan, v_total, p_advance, v_monthly, v_first, p_officer,
-          case when p_sale = 'direct' then 'closed' else 'pending_verification' end)
+          case when p_sale = 'direct' then 'closed'::agreement_state else 'pending_verification'::agreement_state end)
   returning id into v_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
@@ -65,7 +65,7 @@ begin
 
   update installments
      set paid = paid + p_amount,
-         status = case when v_gap > 0 then 'short' else 'paid' end
+         status = case when v_gap > 0 then 'short'::inst_state else 'paid'::inst_state end
    where id = v_inst.id;
 
   if v_gap <> 0 then

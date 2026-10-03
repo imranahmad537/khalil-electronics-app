@@ -1,0 +1,95 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Menu, Search, Clock, Mail } from "lucide-react";
+import { initials } from "@/lib/money";
+
+export function Topbar({
+  onToggleSidebar,
+  windowNote,
+  userName,
+  userRole,
+}: {
+  onToggleSidebar: () => void;
+  windowNote: string;
+  userName: string;
+  userRole: string;
+}) {
+  const pathname = usePathname();
+  const isField = pathname.startsWith("/avo");
+  const [query, setQuery] = useState("");
+
+  return (
+    <div className="topbar flex-none px-4 py-[11px] bg-panel rounded-[var(--r-lg)] shadow-[var(--sh)]">
+      <button
+        className="iconbtn border-0 cursor-pointer w-9 h-9 rounded-[11px] bg-soft text-ink2 flex items-center justify-center"
+        title="Show / hide menu"
+        onClick={onToggleSidebar}
+      >
+        <Menu size={18} strokeWidth={2.4} />
+      </button>
+
+      <div className="searchbox flex items-center gap-[9px] px-[14px] py-[9px] rounded-full bg-soft text-ink3">
+        <Search size={16} strokeWidth={2.4} />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search customer, account…"
+          className="flex-1 min-w-0 border-0 bg-transparent text-[13.5px] text-ink outline-none"
+        />
+        <span className="num hide-md text-[10.5px] font-bold px-[7px] py-[3px] rounded-[7px] bg-white text-ink3 border border-line">
+          ⌘F
+        </span>
+      </div>
+
+      <div className="hide-md flex items-center gap-2 px-[13px] py-[7px] rounded-full bg-g50 text-g700 text-xs font-semibold whitespace-nowrap">
+        <Clock size={14} strokeWidth={2.4} />
+        <span>{windowNote}</span>
+      </div>
+
+      <div className="flex-1 min-w-0" />
+
+      <div className="flex-none flex gap-[5px] p-1 bg-soft rounded-full">
+        <Link
+          href="/dashboard"
+          className="border-0 cursor-pointer rounded-full px-[15px] py-[7px] text-[12.5px] font-bold"
+          style={{
+            background: !isField ? "var(--ink)" : "transparent",
+            color: !isField ? "#fff" : "var(--ink2)",
+          }}
+        >
+          Office
+        </Link>
+        <Link
+          href="/avo"
+          className="border-0 cursor-pointer rounded-full px-[15px] py-[7px] text-[12.5px] font-bold"
+          style={{
+            background: isField ? "var(--ink)" : "transparent",
+            color: isField ? "#fff" : "var(--ink2)",
+          }}
+        >
+          Field
+        </Link>
+      </div>
+
+      <button
+        className="iconbtn flex-none border-0 cursor-pointer w-9 h-9 rounded-full bg-soft text-ink2 flex items-center justify-center"
+        title="Message centre"
+      >
+        <Mail size={17} strokeWidth={2.4} />
+      </button>
+
+      <div className="flex-none flex items-center gap-[9px] pl-[11px] border-l border-line">
+        <div className="w-[34px] h-[34px] flex-none rounded-full bg-g100 flex items-center justify-center text-[12.5px] font-extrabold text-g900">
+          {initials(userName)}
+        </div>
+        <div className="hide-sm flex flex-col leading-[1.3]">
+          <span className="text-[12.5px] font-bold">{userName}</span>
+          <span className="text-[11px] text-ink3">{userRole}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
