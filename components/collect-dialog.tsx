@@ -6,6 +6,7 @@ import { X, Banknote } from "lucide-react";
 import { money } from "@/lib/money";
 import { postReceiptAction } from "@/app/actions/receipts";
 import { showToast } from "@/lib/toast";
+import { queueReceipt, getPositionSafe } from "@/lib/offline-queue";
 
 export interface CollectAgreement {
   id: string;
@@ -57,14 +58,48 @@ export function CollectDialog({
   function submit() {
     setError("");
     startTransition(async () => {
-      const res = await postReceiptAction({ agreementId: selected.id, amount: typed });
-      if (!res.ok) {
-        setError(res.error);
+      const position = await getPositionSafe();
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueReceipt({
+          agreementId: selected.id,
+          amount: typed,
+          lat: position?.lat ?? null,
+          lng: position?.lng ?? null,
+          customerName,
+          queuedAt: new Date().toISOString(),
+        });
+        showToast(`Offline — ${money(typed)} from ${customerName} queued, will sync when back online`);
+        onClose();
         return;
       }
-      showToast(`${money(typed)} received from ${customerName}`);
-      router.refresh();
-      onClose();
+
+      try {
+        const res = await postReceiptAction({
+          agreementId: selected.id,
+          amount: typed,
+          lat: position?.lat ?? null,
+          lng: position?.lng ?? null,
+        });
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        showToast(`${money(typed)} received from ${customerName}`);
+        router.refresh();
+        onClose();
+      } catch {
+        await queueReceipt({
+          agreementId: selected.id,
+          amount: typed,
+          lat: position?.lat ?? null,
+          lng: position?.lng ?? null,
+          customerName,
+          queuedAt: new Date().toISOString(),
+        });
+        showToast(`Connection lost — ${money(typed)} from ${customerName} queued, will sync when back online`);
+        onClose();
+      }
     });
   }
 

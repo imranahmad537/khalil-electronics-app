@@ -880,6 +880,7 @@ export type Database = {
         Returns: string;
       };
       is_office: { Args: Record<PropertyKey, never>; Returns: boolean };
+      mark_installment_statuses: { Args: Record<PropertyKey, never>; Returns: undefined };
       my_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -895,6 +896,8 @@ export type Database = {
         };
         Returns: string;
       };
+      queue_month_reminders: { Args: Record<PropertyKey, never>; Returns: number };
+      queue_overdue_messages: { Args: Record<PropertyKey, never>; Returns: number };
     };
     Enums: {
       agreement_state: "pending_verification" | "open" | "closed" | "cancelled";

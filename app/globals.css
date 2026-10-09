@@ -201,3 +201,50 @@ input::placeholder {
 .tblinner {
   min-width: 900px;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+.agreement-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .agreement-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .agreement-layout .agreement-summary-col {
+    position: static !important;
+  }
+}
+.agreement-summary-col {
+  position: sticky;
+  top: 14px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .form-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.form-grid-2 .span-2 {
+  grid-column: span 2;
+}
+@media (max-width: 760px) {
+  .form-grid-2 .span-2 {
+    grid-column: span 1;
+  }
+}

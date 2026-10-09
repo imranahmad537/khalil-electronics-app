@@ -1,0 +1,13 @@
+{
+  "name": "Khalil Electronics Field App",
+  "short_name": "KE Field",
+  "description": "AVO field collection and house verification",
+  "start_url": "/avo",
+  "scope": "/avo",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#0c4a2c",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

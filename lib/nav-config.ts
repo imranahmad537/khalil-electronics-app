@@ -17,6 +17,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** which Permissions flag must be true to show this item; omit if everyone (every office role) sees it */
+  requires?: "canManageEmployees" | "canManageFinance";
 }
 
 export interface NavGroup {
@@ -39,9 +41,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "GENERAL",
     items: [
       { key: "products", label: "Products", href: "/products", icon: Box },
-      { key: "vendors", label: "Vendors & bills", href: "/vendors", icon: Truck },
-      { key: "expenses", label: "Expenses", href: "/expenses", icon: Wallet },
-      { key: "employees", label: "Employees", href: "/employees", icon: UserCheck },
+      { key: "vendors", label: "Vendors & bills", href: "/vendors", icon: Truck, requires: "canManageFinance" },
+      { key: "expenses", label: "Expenses", href: "/expenses", icon: Wallet, requires: "canManageFinance" },
+      { key: "employees", label: "Employees", href: "/employees", icon: UserCheck, requires: "canManageEmployees" },
       { key: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
     ],
   },

@@ -58,5 +58,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // manifest.json/sw.js/icon.svg must be fetchable without a session — the
+  // browser requests them outside normal page navigation (install prompt,
+  // SW registration) and a redirect-to-login breaks both.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icon.svg).*)"],
 };

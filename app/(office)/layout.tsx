@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
 import { SHOP_NAME, WINDOW_END } from "@/lib/constants";
+import { ROLE_LABEL } from "@/lib/roles";
+import { getPermissions } from "@/lib/permissions";
+import type { UserRole } from "@/lib/types";
 
 function startOfTodayISO() {
   const d = new Date();
@@ -34,6 +37,7 @@ export default async function OfficeLayout({ children }: { children: React.React
   ]);
 
   const monthLabel = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const permissions = getPermissions((profile?.role as UserRole | undefined) ?? null);
 
   return (
     <AppShell
@@ -47,6 +51,7 @@ export default async function OfficeLayout({ children }: { children: React.React
         recovery: behindCount ?? 0,
         recoveryAttention: (behindCount ?? 0) > 0,
       }}
+      permissions={permissions}
     >
       {children}
     </AppShell>
@@ -54,18 +59,5 @@ export default async function OfficeLayout({ children }: { children: React.React
 }
 
 function roleLabel(role?: string) {
-  switch (role) {
-    case "owner":
-      return "Owner / Admin";
-    case "manager":
-      return "Shop manager";
-    case "accountant":
-      return "Accountant";
-    case "sales":
-      return "Sales officer";
-    case "avo":
-      return "AVO";
-    default:
-      return "Team member";
-  }
+  return role && role in ROLE_LABEL ? ROLE_LABEL[role as UserRole] : "Team member";
 }

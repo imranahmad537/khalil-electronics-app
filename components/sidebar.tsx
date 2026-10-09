@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Zap, MapPin } from "lucide-react";
 import { NAV_GROUPS } from "@/lib/nav-config";
 import { cn } from "@/lib/utils";
+import type { Permissions } from "@/lib/permissions";
 
 export interface SidebarBadges {
   customers: number;
@@ -17,10 +18,12 @@ export function Sidebar({
   open,
   shopName,
   badges,
+  permissions,
 }: {
   open: boolean;
   shopName: string;
   badges: SidebarBadges;
+  permissions: Permissions;
 }) {
   const pathname = usePathname();
 
@@ -57,7 +60,9 @@ export function Sidebar({
                 {group.label}
               </div>
             )}
-            {group.items.map((item) => {
+            {group.items
+              .filter((item) => !item.requires || permissions[item.requires])
+              .map((item) => {
               const active = pathname.startsWith(item.href);
               const badge = badgeFor(item.key);
               const Icon = item.icon;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Banknote, BookOpen, MessageCircle } from "lucide-react";
 import { CollectDialog, type CollectAgreement } from "@/components/collect-dialog";
 import { queueReminderAction } from "@/app/actions/messages";
@@ -40,20 +41,25 @@ export function RowActions({
 
   return (
     <div className="flex justify-end gap-[7px]">
-      <button
-        onClick={() =>
-          hasDue ? setOpen(true) : showToast("Customer ledger screen is next on the build list")
-        }
-        className="btnp border-0 cursor-pointer rounded-full px-[14px] py-2 flex items-center gap-[6px] text-xs font-bold"
-        style={
-          hasDue
-            ? { background: "var(--g600)", color: "#fff" }
-            : { background: "#fff", color: "var(--ink2)", border: "1px solid var(--line)" }
-        }
-      >
-        {hasDue ? <Banknote size={15} strokeWidth={2.4} /> : <BookOpen size={15} strokeWidth={2.4} />}
-        {hasDue ? "Collect" : "Ledger"}
-      </button>
+      {hasDue ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="btnp border-0 cursor-pointer rounded-full px-[14px] py-2 flex items-center gap-[6px] text-xs font-bold"
+          style={{ background: "var(--g600)", color: "#fff" }}
+        >
+          <Banknote size={15} strokeWidth={2.4} />
+          Collect
+        </button>
+      ) : (
+        <Link
+          href={`/customers/${customerId}`}
+          className="btnp border-0 cursor-pointer rounded-full px-[14px] py-2 flex items-center gap-[6px] text-xs font-bold"
+          style={{ background: "#fff", color: "var(--ink2)", border: "1px solid var(--line)" }}
+        >
+          <BookOpen size={15} strokeWidth={2.4} />
+          Ledger
+        </Link>
+      )}
       <button
         onClick={remind}
         title="Send WhatsApp reminder"

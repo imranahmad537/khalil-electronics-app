@@ -31,18 +31,26 @@ if (!url || !serviceKey) {
 
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
+// Format using local Y/M/D components, not toISOString() — that converts
+// through UTC and lands on the wrong day whenever the host's timezone is
+// ahead of UTC (e.g. Pakistan, UTC+5), which silently shifted every
+// due_month here onto the last day of the *previous* month.
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function monthsAgo(n, day = 1) {
   const d = new Date();
   d.setDate(1);
   d.setMonth(d.getMonth() - n);
   d.setDate(day);
-  return d.toISOString().slice(0, 10);
+  return ymd(d);
 }
 function firstOfMonth(n) {
   const d = new Date();
   d.setDate(1);
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0, 10);
+  return ymd(d);
 }
 
 async function createUser(email, fullName, role, cell, zone) {
@@ -98,18 +106,24 @@ async function main() {
     vendorIds[name] = inserted.id;
   }
 
+  const categoryIds = {};
+  for (const name of ["Mobile", "Fridge", "AC", "LED", "Bike", "Battery"]) {
+    const { data } = await admin.from("categories").select("id").eq("name", name).maybeSingle();
+    if (data) categoryIds[name] = data.id;
+  }
+
   const productDefs = [
-    ["Samsung Galaxy S24", "Rehman Mobile", 210000, 248000, 4],
-    ["Redmi Note 50", "Rehman Mobile", 42000, 52000, 11],
-    ["Infinix Note 8", "Rehman Mobile", 25000, 35000, 7],
-    ["Haier 12 cft fridge", "Khyber Home Appliance", 96000, 120600, 3],
-    ["Dawlance 1.5 ton AC", "Khyber Home Appliance", 148000, 178000, 1],
-    ['Ecostar LED 55"', "Al-Noor Traders", 82000, 99000, 5],
-    ["Honda CD 70", "Frontier Motors", 74000, 88200, 2],
-    ["AGS battery 27 plate", "Arsalan A2Z Battery", 21000, 26000, 9],
+    ["Samsung Galaxy S24", "Rehman Mobile", "Mobile", 210000, 248000, 4],
+    ["Redmi Note 50", "Rehman Mobile", "Mobile", 42000, 52000, 11],
+    ["Infinix Note 8", "Rehman Mobile", "Mobile", 25000, 35000, 7],
+    ["Haier 12 cft fridge", "Khyber Home Appliance", "Fridge", 96000, 120600, 3],
+    ["Dawlance 1.5 ton AC", "Khyber Home Appliance", "AC", 148000, 178000, 1],
+    ['Ecostar LED 55"', "Al-Noor Traders", "LED", 82000, 99000, 5],
+    ["Honda CD 70", "Frontier Motors", "Bike", 74000, 88200, 2],
+    ["AGS battery 27 plate", "Arsalan A2Z Battery", "Battery", 21000, 26000, 9],
   ];
   const productIds = {};
-  for (const [name, vendor, cost, price, stock] of productDefs) {
+  for (const [name, vendor, category, cost, price, stock] of productDefs) {
     const { data } = await admin.from("products").select("id").eq("name", name).maybeSingle();
     if (data) {
       productIds[name] = data.id;
@@ -117,7 +131,7 @@ async function main() {
     }
     const { data: inserted, error } = await admin
       .from("products")
-      .insert({ name, vendor_id: vendorIds[vendor], cost, price, stock, min_stock: 2 })
+      .insert({ name, vendor_id: vendorIds[vendor], category_id: categoryIds[category], cost, price, stock, min_stock: 2 })
       .select("id")
       .single();
     if (error) throw error;
@@ -228,6 +242,40 @@ async function main() {
       p_account: "cash_in_hand",
     });
     if (error) console.warn("post_receipt warning for", c.full_name, error.message);
+  }
+
+  console.log("Seeding employees + expense vouchers...");
+  const employeeDefs = [
+    [owner, "Khalil Ahmad", "owner", "0300-1000001", "17301-0000001-1", 0, monthsAgo(48)],
+    [manager, "Kashif Nawaz", "manager", "0321-3344556", "17301-0000002-2", 60000, monthsAgo(40)],
+    [accountant, "Imran Shah", "accountant", "0300-7788112", "17301-0000003-3", 55000, monthsAgo(38)],
+    [sales, "Sohail Ahmad", "sales", "0333-1122998", "17301-0000004-4", 45000, monthsAgo(28)],
+    [officers["Israr Ali"], "Israr Ali", "avo", "0301-2233445", "17301-0000005-5", 42000, monthsAgo(31)],
+    [officers["Naveed Khan"], "Naveed Khan", "avo", "0302-8877665", "17301-0000006-6", 40000, monthsAgo(27)],
+    [officers["Waqar Shah"], "Waqar Shah", "avo", "0313-4455667", "17301-0000007-7", 38000, monthsAgo(20)],
+    [officers["Rehan Gul"], "Rehan Gul", "avo", "0345-9988776", "17301-0000008-8", 38000, monthsAgo(19)],
+  ];
+  for (const [profileId, fullName, role, cell, cnic, salary, joinedOn] of employeeDefs) {
+    if (salary === 0) continue; // skip the owner — not payroll staff
+    const { data: existing } = await admin.from("employees").select("id").eq("profile_id", profileId).maybeSingle();
+    if (existing) continue;
+    const { error } = await admin
+      .from("employees")
+      .insert({ profile_id: profileId, full_name: fullName, role, cell, cnic, salary, joined_on: joinedOn });
+    if (error) throw error;
+  }
+
+  const { count: expenseCount } = await admin.from("expenses").select("id", { count: "exact", head: true });
+  if (!expenseCount) {
+    const thisMonth = () => firstOfMonth(0);
+    await admin.from("expenses").insert([
+      { category: "Shop rent", description: "Monthly rent", amount: 65000, account: "meezan_bank", spent_on: thisMonth(), created_by: owner },
+      { category: "Salaries", description: "AVO field allowance (4 officers)", amount: 24000, account: "cash_in_hand", spent_on: thisMonth(), created_by: owner },
+      { category: "Fuel", description: "Bike fuel — recovery rounds", amount: 4600, account: "cash_in_hand", spent_on: thisMonth(), created_by: owner },
+      { category: "Utilities", description: "WAPDA bill", amount: 18700, account: "meezan_bank", spent_on: thisMonth(), created_by: owner },
+      { category: "Marketing", description: "WhatsApp bulk pack + printing", amount: 3200, account: "jazzcash", spent_on: thisMonth(), created_by: owner },
+      { category: "Misc", description: "Shop miscellaneous", amount: 1450, account: "cash_in_hand", spent_on: thisMonth(), created_by: owner },
+    ]);
   }
 
   console.log("\nDemo data ready. Sign in at /login with any of:");

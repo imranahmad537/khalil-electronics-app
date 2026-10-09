@@ -92,7 +92,13 @@ end $$;
 
 -- Customer status for a given month, across ALL their open agreements.
 -- paid | short | due | overdue | default   (window = 1st–5th)
-create or replace view customer_month_status as
+-- security_invoker: without this, the view runs with its owner's privileges
+-- (which bypass RLS), so an AVO querying this view would see every customer,
+-- not just their own — defeating the avo_read policies on customers/agreements/
+-- installments/guarantors. See README: "The officer only sees their assigned
+-- customers (enforced by RLS)."
+create or replace view customer_month_status
+with (security_invoker = true) as
 with cur as (
   select a.customer_id, i.*, a.plan_months
     from installments i join agreements a on a.id = i.agreement_id
