@@ -142,7 +142,9 @@ export function CustomerPicker({
             <Controller
               name="cell2"
               control={control}
-              render={({ field }) => <MaskedInput value={field.value} onChange={field.onChange} mask={maskCell} placeholder="03XX-XXXXXXX" />}
+              render={({ field }) => (
+                <MaskedInput value={field.value} onChange={field.onChange} mask={maskCell} placeholder="03XX-XXXXXXX" error={errors.cell2?.message} />
+              )}
             />
           </Field>
           <Field label="Area">

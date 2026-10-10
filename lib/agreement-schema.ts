@@ -1,7 +1,9 @@
 import { z } from "zod";
 
-export const CNIC_PATTERN = /^\d{5}-\d{7}-\d$/;
-export const CELL_PATTERN = /^03\d{2}-\d{7}$/;
+import { CELL_PATTERN, CNIC_PATTERN, cellError } from "@/lib/validation";
+
+// Formats live in lib/validation.ts so every form validates the same way.
+export { CNIC_PATTERN, CELL_PATTERN, maskCnic, maskCell } from "@/lib/validation";
 
 export const RELATIONS = ["Brother", "Father", "Friend", "Colleague", "Neighbour", "Other"] as const;
 
@@ -51,6 +53,8 @@ export const agreementFormSchema = z
       if (!data.fullName.trim()) ctx.addIssue({ code: "custom", path: ["fullName"], message: "Required" });
       if (!CNIC_PATTERN.test(data.cnic)) ctx.addIssue({ code: "custom", path: ["cnic"], message: "Format: 00000-0000000-0" });
       if (!CELL_PATTERN.test(data.cell)) ctx.addIssue({ code: "custom", path: ["cell"], message: "Format: 03XX-XXXXXXX" });
+      const cell2 = cellError(data.cell2);
+      if (cell2) ctx.addIssue({ code: "custom", path: ["cell2"], message: cell2 });
       if (!data.address.trim()) ctx.addIssue({ code: "custom", path: ["address"], message: "Required" });
     } else {
       if (!data.customerId) ctx.addIssue({ code: "custom", path: ["customerId"], message: "Pick a customer" });
@@ -118,17 +122,3 @@ export function defaultAgreementValues(): AgreementFormValues {
   };
 }
 
-export function maskCnic(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 13);
-  const p1 = digits.slice(0, 5);
-  const p2 = digits.slice(5, 12);
-  const p3 = digits.slice(12, 13);
-  return [p1, p2, p3].filter(Boolean).join("-");
-}
-
-export function maskCell(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 11);
-  const p1 = digits.slice(0, 4);
-  const p2 = digits.slice(4, 11);
-  return [p1, p2].filter(Boolean).join("-");
-}

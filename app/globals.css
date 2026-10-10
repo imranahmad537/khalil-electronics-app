@@ -202,12 +202,74 @@ input::placeholder {
   min-width: 900px;
 }
 
+.print-only {
+  display: none;
+}
+
+/* Reports print on landscape A4 (wide tables); receipts keep the default page. */
+@page {
+  margin: 12mm;
+}
+@page report {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
+  .print-only {
+    display: block !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html,
   body {
     background: #fff;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Office shell: drop the chrome, and let the content flow onto as many
+     pages as it needs instead of being clipped to one screen. */
+  .app-shell > aside,
+  .app-shell .topbar {
+    display: none !important;
+  }
+  .app-shell,
+  .app-main,
+  .app-content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .app-content > * + * {
+    margin-top: 12px;
+  }
+
+  .print-report {
+    page: report;
+  }
+  .print-report [class*="shadow-"] {
+    box-shadow: none !important;
+    border: 1px solid var(--line);
+  }
+
+  /* Tables: no horizontal scrolling on paper, and don't split a row. */
+  .tblwrap {
+    overflow: visible !important;
+  }
+  .tblinner {
+    min-width: 0 !important;
+  }
+  .trow {
+    break-inside: avoid;
   }
 }
 

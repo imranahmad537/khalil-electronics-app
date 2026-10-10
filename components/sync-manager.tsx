@@ -106,7 +106,7 @@ export function SyncManager() {
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] p-4 flex flex-col gap-3">
+    <div className="no-print rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] p-4 flex flex-col gap-3">
       {waiting.length > 0 && (
         <div className="flex items-center gap-2 text-[12.5px] font-semibold text-ink2">
           <CloudOff size={15} strokeWidth={2.4} />

@@ -6,6 +6,7 @@ import { getCurrentPermissions } from "@/lib/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { friendlyDbError } from "@/lib/db-errors";
 import type { UserRole } from "@/lib/types";
+import { cellError, cnicError } from "@/lib/validation";
 
 export interface EmployeeInput {
   fullName: string;
@@ -18,9 +19,20 @@ export interface EmployeeInput {
 
 const FORBIDDEN = { ok: false as const, error: "Your role doesn't have access to employees." };
 
+// Cell and CNIC are optional for staff, but must be in the standard format when given.
+function validate(input: EmployeeInput): string | null {
+  if (!input.fullName.trim()) return "Name is required.";
+  const cell = cellError(input.cell);
+  if (cell) return `Cell: ${cell}`;
+  const cnic = cnicError(input.cnic);
+  if (cnic) return `CNIC: ${cnic}`;
+  return null;
+}
+
 export async function createEmployeeAction(input: EmployeeInput): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!(await getCurrentPermissions()).canManageEmployees) return FORBIDDEN;
-  if (!input.fullName.trim()) return { ok: false, error: "Name is required." };
+  const invalid = validate(input);
+  if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createClient();
   const { error } = await supabase.from("employees").insert({
@@ -42,7 +54,8 @@ export async function updateEmployeeAction(
   input: EmployeeInput
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!(await getCurrentPermissions()).canManageEmployees) return FORBIDDEN;
-  if (!input.fullName.trim()) return { ok: false, error: "Name is required." };
+  const invalid = validate(input);
+  if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createClient();
   const { error } = await supabase

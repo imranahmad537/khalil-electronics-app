@@ -12,6 +12,7 @@ import { AgreementSummary, type SummaryRow } from "@/components/agreement-summar
 import { createNewAgreementAction } from "@/app/actions/agreements";
 import { agreementFormSchema, defaultAgreementValues, type AgreementFormValues } from "@/lib/agreement-schema";
 import { newClientRef } from "@/lib/offline-queue";
+import { enterToNextField } from "@/lib/enter-to-next";
 import { showToast } from "@/lib/toast";
 import { money } from "@/lib/money";
 import type { ExistingCustomerOption, OfficerOption, ProductOption } from "@/lib/data/agreement-form";
@@ -150,7 +151,7 @@ export function AgreementForm({
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={(e) => e.preventDefault()} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+      <form onSubmit={(e) => e.preventDefault()} onKeyDown={enterToNextField} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
         <div className="flex flex-col gap-4 min-w-0">
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <h1 className="text-[20px] font-extrabold m-0">New agreement</h1>

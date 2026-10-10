@@ -8,6 +8,9 @@ import { ROLE_LABEL, ASSIGNABLE_ROLES } from "@/lib/roles";
 import { showToast } from "@/lib/toast";
 import type { EmployeeRow } from "@/lib/data/employees";
 import { todayLocalDateStr } from "@/lib/local-date";
+import { MaskedInput } from "@/components/masked-input";
+import { cellError, cnicError, maskCell, maskCnic } from "@/lib/validation";
+import { enterToNextField } from "@/lib/enter-to-next";
 
 const inputCls = "px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-ink outline-none";
 const labelCls = "text-[11.5px] font-bold text-ink2";
@@ -30,9 +33,21 @@ function blankForm(existing?: EmployeeRow): EmployeeInput {
   return { fullName: "", role: "sales", cell: "", cnic: "", salary: 0, joinedOn: today() };
 }
 
-function EmployeeFields({ form, setForm }: { form: EmployeeInput; setForm: React.Dispatch<React.SetStateAction<EmployeeInput>> }) {
+function formInvalid(form: EmployeeInput) {
+  return !form.fullName.trim() || !!cellError(form.cell) || !!cnicError(form.cnic);
+}
+
+function EmployeeFields({
+  form,
+  setForm,
+  showErrors,
+}: {
+  form: EmployeeInput;
+  setForm: React.Dispatch<React.SetStateAction<EmployeeInput>>;
+  showErrors: boolean;
+}) {
   return (
-    <>
+    <div className="flex flex-col gap-4" onKeyDown={enterToNextField}>
       <div className="flex flex-col gap-1">
         <label className={labelCls}>Full name</label>
         <input className={inputCls} value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} />
@@ -56,11 +71,25 @@ function EmployeeFields({ form, setForm }: { form: EmployeeInput; setForm: React
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Cell</label>
-          <input className={inputCls} value={form.cell} onChange={(e) => setForm((f) => ({ ...f, cell: e.target.value }))} />
+          <MaskedInput
+            value={form.cell}
+            onChange={(v) => setForm((f) => ({ ...f, cell: v }))}
+            mask={maskCell}
+            placeholder="03XX-XXXXXXX"
+            inputMode="numeric"
+            error={showErrors ? (cellError(form.cell) ?? undefined) : undefined}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <label className={labelCls}>CNIC</label>
-          <input className={inputCls} value={form.cnic} onChange={(e) => setForm((f) => ({ ...f, cnic: e.target.value }))} />
+          <MaskedInput
+            value={form.cnic}
+            onChange={(v) => setForm((f) => ({ ...f, cnic: v }))}
+            mask={maskCnic}
+            placeholder="00000-0000000-0"
+            inputMode="numeric"
+            error={showErrors ? (cnicError(form.cnic) ?? undefined) : undefined}
+          />
         </div>
       </div>
       <div className="flex flex-col gap-1">
@@ -72,7 +101,7 @@ function EmployeeFields({ form, setForm }: { form: EmployeeInput; setForm: React
           onChange={(e) => setForm((f) => ({ ...f, salary: Number(e.target.value.replace(/[^0-9.]/g, "")) || 0 }))}
         />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -82,9 +111,12 @@ export function AddEmployeeDialog() {
   const [form, setForm] = useState<EmployeeInput>(blankForm());
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   function submit() {
     setError("");
+    setShowErrors(true);
+    if (formInvalid(form)) return;
     startTransition(async () => {
       const res = await createEmployeeAction(form);
       if (!res.ok) {
@@ -94,6 +126,7 @@ export function AddEmployeeDialog() {
       showToast(`${form.fullName} added to the staff register`);
       setOpen(false);
       setForm(blankForm());
+      setShowErrors(false);
       router.refresh();
     });
   }
@@ -117,7 +150,7 @@ export function AddEmployeeDialog() {
                 <X size={16} strokeWidth={2.4} />
               </button>
             </div>
-            <EmployeeFields form={form} setForm={setForm} />
+            <EmployeeFields form={form} setForm={setForm} showErrors={showErrors} />
             {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
             <button
               onClick={submit}
@@ -139,9 +172,12 @@ export function EmployeeProfileButton({ employee }: { employee: EmployeeRow }) {
   const [form, setForm] = useState<EmployeeInput>(blankForm(employee));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   function submit() {
     setError("");
+    setShowErrors(true);
+    if (formInvalid(form)) return;
     startTransition(async () => {
       const res = await updateEmployeeAction(employee.id, form);
       if (!res.ok) {
@@ -179,7 +215,7 @@ export function EmployeeProfileButton({ employee }: { employee: EmployeeRow }) {
                 <X size={16} strokeWidth={2.4} />
               </button>
             </div>
-            <EmployeeFields form={form} setForm={setForm} />
+            <EmployeeFields form={form} setForm={setForm} showErrors={showErrors} />
             {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
             <div className="flex gap-2">
               <button

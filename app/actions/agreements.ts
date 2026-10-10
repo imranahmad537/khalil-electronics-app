@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { matchAvoByArea } from "@/lib/avo-matching";
 import { friendlyDbError } from "@/lib/db-errors";
 import { isMoneyAccount, isPayMode, type MoneyAccount, type PayMode } from "@/lib/payment";
+import { cellError, cnicError } from "@/lib/validation";
 
 export interface AgreementItemInput {
   productId: string;
@@ -88,6 +89,11 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
     if (!nc.fullName.trim() || !nc.cell.trim()) {
       return { ok: false, error: "Customer name and cell number are required." };
     }
+    const bad =
+      fieldError("Customer CNIC", cnicError(nc.cnic, true)) ??
+      fieldError("Customer cell", cellError(nc.cell, true)) ??
+      fieldError("Alternate cell", cellError(nc.cell2));
+    if (bad) return { ok: false, error: bad };
     let avoId = nc.avoId;
     if (!avoId && nc.area.trim()) {
       const { data: officers } = await supabase.from("profiles").select("id, zone").eq("role", "avo").eq("active", true);
@@ -105,6 +111,15 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
       occupation: nc.occupation,
       avo_id: avoId,
     };
+  }
+
+  if (isInstallment && !input.useExistingGuarantors) {
+    const bad =
+      fieldError("Guarantor 1 CNIC", cnicError(input.guarantor1.cnic, true)) ??
+      fieldError("Guarantor 1 cell", cellError(input.guarantor1.cell, true)) ??
+      fieldError("Guarantor 2 CNIC", cnicError(input.guarantor2.cnic, true)) ??
+      fieldError("Guarantor 2 cell", cellError(input.guarantor2.cell, true));
+    if (bad) return { ok: false, error: bad };
   }
 
   const guarantors =
@@ -156,6 +171,10 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
     avoName: result.avo_name,
     isInstallment,
   };
+}
+
+function fieldError(label: string, problem: string | null): string | null {
+  return problem ? `${label}: ${problem === "Required" ? "required" : problem}` : null;
 }
 
 function toGuarantorRow(g: GuarantorInput) {

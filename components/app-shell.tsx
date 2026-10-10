@@ -27,17 +27,17 @@ export function AppShell({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-page p-3.5 gap-3.5">
+    <div className="app-shell h-screen flex overflow-hidden bg-page p-3.5 gap-3.5">
       <Sidebar open={sidebarOpen} shopName={shopName} badges={badges} permissions={permissions} />
 
-      <div className="flex-1 min-w-0 flex flex-col gap-3.5">
+      <div className="app-main flex-1 min-w-0 flex flex-col gap-3.5">
         <Topbar
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           windowNote={windowNote}
           userName={userName}
           userRole={userRole}
         />
-        <div className="scroll flex-1 min-h-0 flex flex-col gap-4 pr-0.5">
+        <div className="app-content scroll flex-1 min-h-0 flex flex-col gap-4 pr-0.5">
           <SyncManager />
           {children}
         </div>

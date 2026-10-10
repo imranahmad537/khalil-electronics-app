@@ -24,6 +24,7 @@ export function ProductCombobox({
       <PopoverTrigger asChild>
         <button
           type="button"
+          data-enter-target={selected ? "" : "open"}
           className="w-full flex items-center justify-between gap-2 px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-left outline-none"
         >
           <span className={selected ? "text-ink font-semibold truncate" : "text-ink3 truncate"}>

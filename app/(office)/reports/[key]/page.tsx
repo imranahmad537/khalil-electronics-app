@@ -7,6 +7,8 @@ import { DataTable, type DataRow, type DataColumn } from "@/components/data-tabl
 import { LedgerSearch } from "@/components/ledger-search";
 import { StatTile } from "@/components/stat-tile";
 import { money } from "@/lib/money";
+import { SHOP_NAME } from "@/lib/constants";
+import { SHOP_TZ } from "@/lib/shop-time";
 import { REPORTS } from "@/lib/reports-config";
 import {
   getInstallmentsReceivedReport,
@@ -42,9 +44,22 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
     return <AccessDenied title={def.name} note="This report is visible to owners, managers and accountants only." />;
   }
 
-  const monthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: SHOP_TZ });
+
+  const printedAt = new Date().toLocaleString("en-US", {
+    timeZone: SHOP_TZ,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   const header = (hint: string) => (
+    <>
+    <div className="print-only text-[11px] text-ink3 border-b border-line pb-2">
+      {SHOP_NAME} · printed {printedAt}
+    </div>
     <div className="flex items-center gap-3">
       <Link
         href="/reports"
@@ -56,6 +71,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
         <PrintButton />
       </PageHeader>
     </div>
+    </>
   );
 
   if (key === "installments-received") {
@@ -78,7 +94,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} receipts · ${monthLabel}`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="130px minmax(160px,1.6fr) minmax(120px,1fr) 120px 120px" columns={columns} rows={rows} minWidth={760} emptyMessage="No receipts this month." />
@@ -106,7 +122,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} agreements with a balance`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="minmax(170px,1.6fr) 100px minmax(160px,1.4fr) 130px" columns={columns} rows={rows} minWidth={760} emptyMessage="Nothing receivable." />
@@ -136,7 +152,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} accounts due · for today's field round`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="minmax(130px,1fr) minmax(160px,1.5fr) 130px minmax(120px,1fr) 120px" columns={columns} rows={rows} minWidth={760} emptyMessage="Nothing due." />
@@ -166,7 +182,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} defaulters · flag guarantors for contact`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="minmax(170px,1.5fr) 120px minmax(150px,1.2fr) minmax(150px,1.2fr) 120px" columns={columns} rows={rows} minWidth={820} emptyMessage="No defaulters right now." />
@@ -179,9 +195,11 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
   if (key === "customer-ledger") {
     const customers = await getCustomerLedgerIndex();
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${customers.length} accounts — pick one to open its ledger`)}
-        <LedgerSearch customers={customers} />
+        <div className="no-print">
+          <LedgerSearch customers={customers} />
+        </div>
       </div>
     );
   }
@@ -208,7 +226,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} vendors`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="minmax(180px,1.6fr) 100px minmax(130px,1fr) 130px" columns={columns} rows={rows} minWidth={700} />
@@ -239,7 +257,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       ],
     }));
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(`${data.belowMinCount} of ${data.rows.length} below minimum`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
           <DataTable gridTemplate="minmax(180px,1.7fr) minmax(140px,1.2fr) 100px 90px 80px" columns={columns} rows={rows} minWidth={760} />
@@ -252,13 +270,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
   if (key === "profit-loss") {
     const data = await getProfitLossReport();
     return (
-      <div className="flex flex-col gap-4">
+      <div className="print-report flex flex-col gap-4">
         {header(monthLabel)}
         <div className="kpis">
           <StatTile label="Sales" value={money(data.salesThisMonth)} note="Agreements opened this month" tone="hero" icon={TrendingUp} />
           <StatTile label="Recovery" value={money(data.recoveryThisMonth)} note="Installments collected" tone="good" icon={CheckCircle} />
           <StatTile label="Expenses" value={money(data.expensesThisMonth)} note="Vouchers this month" tone="warn" icon={Receipt} />
-          <StatTile label="Net cash position" value={money(data.netCashPosition)} note="Recovery + direct sales − expenses" tone={data.netCashPosition >= 0 ? "good" : "warn"} icon={Wallet} />
+          <StatTile label="Net cash position" value={money(data.netCashPosition)} note="All collections − expenses" tone={data.netCashPosition >= 0 ? "good" : "warn"} icon={Wallet} />
         </div>
         <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-3">
           <h2 className="text-[16.5px] font-extrabold m-0">Gross margin</h2>
