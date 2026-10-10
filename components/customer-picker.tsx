@@ -243,7 +243,7 @@ export function CustomerPicker({
                     Acc {selected.accNo} · {selected.cell} · {selected.area ?? "—"}
                   </div>
                 </div>
-                <Link href={`/customers/${selected.id}`} target="_blank" className="text-[11.5px] font-bold text-g700 underline">
+                <Link href={`/customers/${selected.id}`} target="_blank" className="text-[11.5px] font-bold text-g700">
                   View ledger
                 </Link>
               </div>

@@ -12,7 +12,7 @@ export function AccessDenied({ title, note }: { title: string; note: string }) {
         </div>
         <h2 className="text-[16.5px] font-extrabold m-0">Your role doesn&apos;t have access to this</h2>
         <p className="m-0 text-[13px] text-ink2 max-w-[420px]">{note}</p>
-        <Link href="/dashboard" className="text-[12.5px] font-bold text-g700 underline mt-1">
+        <Link href="/dashboard" className="text-[12.5px] font-bold text-g700 mt-1">
           Back to dashboard
         </Link>
       </div>
