@@ -47,10 +47,15 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && !isAuthRoute) {
-    const { data: profile } = await supabase.from("profiles").select("role, active").eq("id", user.id).single();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, active")
+      .eq("id", user.id)
+      .maybeSingle();
     // A deactivated employee (or a login with no staff profile) is signed out.
     // RLS already denies them everything via my_role(); this ends the session.
-    if (!profile?.active) {
+    // Only on a definite answer — a network/DB error must not log staff out.
+    if (!profileError && !profile?.active) {
       await supabase.auth.signOut({ scope: "local" });
       const url = request.nextUrl.clone();
       url.pathname = "/login";
@@ -59,7 +64,7 @@ export async function middleware(request: NextRequest) {
       for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
       return redirect;
     }
-    if (profile.role === "avo" && !isAvoRoute) {
+    if (profile?.role === "avo" && !isAvoRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/avo";
       return NextResponse.redirect(url);
