@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar, type SidebarBadges } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { Toaster } from "@/components/toaster";
+import { SyncManager } from "@/components/sync-manager";
 import type { Permissions } from "@/lib/permissions";
 
 export function AppShell({
@@ -36,7 +37,10 @@ export function AppShell({
           userName={userName}
           userRole={userRole}
         />
-        <div className="scroll flex-1 min-h-0 flex flex-col gap-4 pr-0.5">{children}</div>
+        <div className="scroll flex-1 min-h-0 flex flex-col gap-4 pr-0.5">
+          <SyncManager />
+          {children}
+        </div>
       </div>
       <Toaster />
     </div>

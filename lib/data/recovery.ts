@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 
 export interface OfficerPerformanceRow {
@@ -21,6 +22,8 @@ export interface PendingVerification {
   notes: string | null;
   photoCount: number;
   createdAt: string;
+  /** pending = awaiting the AVO's visit; approved = opened by the AVO recently (office can still reject). */
+  status: "pending" | "approved";
 }
 
 export interface RecoveryData {
@@ -30,10 +33,8 @@ export interface RecoveryData {
   assignedAccountsCount: number;
 }
 
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+function daysAgoISO(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export async function getRecoveryData(): Promise<RecoveryData> {
@@ -42,11 +43,11 @@ export async function getRecoveryData(): Promise<RecoveryData> {
   const [officersRes, statusRes, receiptsRes, verificationsRes, assignedCountRes] = await Promise.all([
     supabase.from("profiles").select("id, full_name, zone").eq("role", "avo").eq("active", true).order("full_name"),
     supabase.from("customer_month_status").select("*"),
-    supabase.from("receipts").select("amount, collected_by").gte("collected_at", startOfTodayISO()),
+    supabase.from("receipts").select("amount, collected_by").gte("collected_at", shopTodayStartISO()),
     supabase
       .from("verifications")
-      .select("id, customer_id, house_type, notes, photo_paths, created_at, customers(full_name, acc_no), profiles(full_name)")
-      .eq("status", "pending")
+      .select("id, customer_id, status, house_type, notes, photo_paths, created_at, customers(full_name, acc_no), profiles(full_name)")
+      .or(`status.eq.pending,and(status.eq.approved,visited_at.gte."${daysAgoISO(14)}")`)
       .order("created_at", { ascending: true }),
     supabase.from("customers").select("id", { count: "exact", head: true }).not("avo_id", "is", null),
   ]);
@@ -62,6 +63,7 @@ export async function getRecoveryData(): Promise<RecoveryData> {
   type VerificationRecord = {
     id: string;
     customer_id: string;
+    status: "pending" | "approved";
     house_type: string | null;
     notes: string | null;
     photo_paths: string[] | null;
@@ -100,6 +102,7 @@ export async function getRecoveryData(): Promise<RecoveryData> {
     notes: v.notes,
     photoCount: v.photo_paths?.length ?? 0,
     createdAt: v.created_at,
+    status: v.status,
   }));
 
   return {

@@ -73,10 +73,10 @@ export function AvoShell({
           </Link>
         </div>
 
+        <SyncManager />
         {children}
       </div>
       <Toaster />
-      <SyncManager />
       <RegisterSW />
     </div>
   );

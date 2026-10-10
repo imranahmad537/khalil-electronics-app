@@ -69,6 +69,7 @@ export type Database = {
         Row: {
           advance: number;
           agreement_no: number;
+          client_ref: string | null;
           closed_on: string | null;
           created_at: string;
           customer_id: string;
@@ -393,6 +394,12 @@ export type Database = {
           },
         ];
       };
+      job_runs: {
+        Row: { job: string; last_run_at: string };
+        Insert: { job: string; last_run_at: string };
+        Update: { job?: string; last_run_at?: string };
+        Relationships: [];
+      };
       message_templates: {
         Row: {
           body: string;
@@ -639,6 +646,7 @@ export type Database = {
           mode: Database["public"]["Enums"]["pay_mode"];
           notes: string | null;
           receipt_no: number;
+          client_ref: string | null;
         };
         Insert: {
           account?: Database["public"]["Enums"]["money_account"];
@@ -780,6 +788,7 @@ export type Database = {
           photo_paths: string[] | null;
           status: Database["public"]["Enums"]["verify_state"];
           visited_at: string | null;
+          agreement_id: string | null;
         };
         Insert: {
           avo_id: string;
@@ -868,19 +877,23 @@ export type Database = {
     };
     Functions: {
       approve_verification: { Args: { p_verification: string }; Returns: undefined };
-      create_agreement: {
+      // p_customer_id / p_new_customer / p_guarantors / p_plan are nullable in SQL
+      create_sale: {
         Args: {
-          p_advance: number;
-          p_customer: string;
+          p_client_ref: string;
+          p_customer_id: string | null;
+          p_new_customer: Json | null;
+          p_guarantors: Json | null;
           p_items: Json;
-          p_officer: string;
-          p_plan: number;
-          p_sale: Database["public"]["Enums"]["sale_type"];
+          p_plan: number | null;
+          p_advance: number;
+          p_mode: Database["public"]["Enums"]["pay_mode"];
+          p_account: Database["public"]["Enums"]["money_account"];
         };
-        Returns: string;
+        Returns: Json;
       };
       is_office: { Args: Record<PropertyKey, never>; Returns: boolean };
-      mark_installment_statuses: { Args: Record<PropertyKey, never>; Returns: undefined };
+      least_loaded_avo: { Args: Record<PropertyKey, never>; Returns: string | null };
       my_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -893,11 +906,25 @@ export type Database = {
           p_lat?: number;
           p_lng?: number;
           p_mode: Database["public"]["Enums"]["pay_mode"];
+          p_client_ref?: string;
         };
         Returns: string;
       };
-      queue_month_reminders: { Args: Record<PropertyKey, never>; Returns: number };
-      queue_overdue_messages: { Args: Record<PropertyKey, never>; Returns: number };
+      reject_verification: { Args: { p_verification: string; p_reason?: string }; Returns: undefined };
+      set_employee_active: { Args: { p_employee: string; p_active: boolean }; Returns: string | null };
+      shop_today: { Args: Record<PropertyKey, never>; Returns: string };
+      submit_visit: {
+        Args: {
+          p_verification: string;
+          p_approve: boolean;
+          p_house_type: string;
+          p_notes: string;
+          p_photo_paths: string[];
+          p_lat: number | null;
+          p_lng: number | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       agreement_state: "pending_verification" | "open" | "closed" | "cancelled";

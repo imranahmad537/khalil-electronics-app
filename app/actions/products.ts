@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 
 export async function createProductAction(input: {
   name: string;
@@ -27,7 +28,7 @@ export async function createProductAction(input: {
     min_stock: input.minStock,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/products");
   return { ok: true };
 }

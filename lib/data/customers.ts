@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopMonthStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus, CustomerStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer, type AgreementSummary } from "@/lib/data/agreements";
 import type { CollectAgreement } from "@/components/collect-dialog";
@@ -32,12 +33,6 @@ export interface CustomersData {
   bookValue: number;
 }
 
-function startOfMonthISO() {
-  const d = new Date();
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 const NO_ACTIVE_PLAN: CustomerStatus = "paid";
 
@@ -52,7 +47,7 @@ export async function getCustomersData(): Promise<CustomersData> {
     supabase.from("customer_month_status").select("*"),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),
     fetchOpenInstallments(supabase),
-    supabase.from("receipts").select("amount").gte("collected_at", startOfMonthISO()),
+    supabase.from("receipts").select("amount").gte("collected_at", shopMonthStartISO()),
   ]);
 
   if (customersRes.error) throw new Error(customersRes.error.message);
@@ -77,9 +72,7 @@ export async function getCustomersData(): Promise<CustomersData> {
   const officerNameById = new Map(officerProfiles.map((p) => [p.id, p.full_name]));
   const agreementsByCustomer = summarizeAgreementsByCustomer(openInst);
 
-  const thisMonthStart = new Date();
-  thisMonthStart.setDate(1);
-  thisMonthStart.setHours(0, 0, 0, 0);
+  const thisMonthStart = new Date(shopMonthStartISO());
 
   const rows: CustomerListRow[] = customers.map((c) => {
     const statusRow = statusByCustomer.get(c.id);

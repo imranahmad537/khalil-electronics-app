@@ -1,14 +1,24 @@
+import type { MoneyAccount, PayMode } from "@/lib/payment";
+
 const DB_NAME = "ke-electronics-field";
 const STORE = "pending-receipts";
+export const QUEUE_CHANGED_EVENT = "ke-receipt-queue-changed";
 
 export interface QueuedReceipt {
   id?: number;
   agreementId: string;
   amount: number;
+  /** Same key the online attempt used, so a sync of an already-saved receipt is a no-op. */
+  clientRef: string;
+  mode: PayMode;
+  account: MoneyAccount;
   lat: number | null;
   lng: number | null;
   customerName: string;
   queuedAt: string;
+  /** Set when the server rejected it — it is then held for review, not retried. */
+  failedError?: string;
+  failedAt?: string;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -25,15 +35,24 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function queueReceipt(receipt: Omit<QueuedReceipt, "id">): Promise<void> {
+async function write(fn: (store: IDBObjectStore) => void): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).add(receipt);
+    fn(tx.objectStore(STORE));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
   db.close();
+  window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+}
+
+export function newClientRef(): string {
+  return crypto.randomUUID();
+}
+
+export async function queueReceipt(receipt: Omit<QueuedReceipt, "id">): Promise<void> {
+  await write((store) => store.add(receipt));
 }
 
 export async function getQueuedReceipts(): Promise<QueuedReceipt[]> {
@@ -48,15 +67,12 @@ export async function getQueuedReceipts(): Promise<QueuedReceipt[]> {
   return result;
 }
 
+export async function updateQueuedReceipt(item: QueuedReceipt): Promise<void> {
+  await write((store) => store.put(item));
+}
+
 export async function removeQueuedReceipt(id: number): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+  await write((store) => store.delete(id));
 }
 
 export function getPositionSafe(timeoutMs = 4000): Promise<{ lat: number; lng: number } | null> {

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
 import type { CollectAgreement } from "@/components/collect-dialog";
@@ -31,11 +32,6 @@ export interface ReceiptsData {
   pendingCustomers: PendingCustomer[];
 }
 
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export async function getReceiptsData(): Promise<ReceiptsData> {
   const supabase = await createClient();
@@ -44,7 +40,7 @@ export async function getReceiptsData(): Promise<ReceiptsData> {
     supabase
       .from("receipts")
       .select("id, receipt_no, amount, mode, collected_at, customers(full_name, acc_no), profiles(full_name)")
-      .gte("collected_at", startOfTodayISO())
+      .gte("collected_at", shopTodayStartISO())
       .order("collected_at", { ascending: false }),
     supabase.from("customer_month_status").select("*"),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),

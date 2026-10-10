@@ -6,7 +6,7 @@ import { DuesTable } from "@/components/dues-table";
 import { OfficerRecovery } from "@/components/officer-recovery";
 import { ReceiptsToday } from "@/components/receipts-today";
 import { SendRemindersButton } from "@/components/send-reminders-button";
-import { getDashboardData } from "@/lib/data/dashboard";
+import { getDashboardData, getStatusJobWarning } from "@/lib/data/dashboard";
 import { money } from "@/lib/money";
 import { WINDOW_END, ATTENTION_STATUSES } from "@/lib/constants";
 
@@ -22,7 +22,7 @@ export default async function DashboardPage({
     ? (riskParam as Risk)
     : "all";
 
-  const data = await getDashboardData();
+  const [data, jobWarning] = await Promise.all([getDashboardData(), getStatusJobWarning()]);
   const monthLabel = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
 
   const visibleRows =
@@ -45,6 +45,13 @@ export default async function DashboardPage({
         <MonthSwitcher />
         <SendRemindersButton customers={remindable} monthLabel={monthLabel} />
       </PageHeader>
+
+      {jobWarning && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber50 text-[12.5px] font-semibold" style={{ color: "#8a5a10" }}>
+          <AlertCircle size={15} strokeWidth={2.4} />
+          {jobWarning}
+        </div>
+      )}
 
       <div className="kpis">
         <KpiCard

@@ -45,9 +45,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && !isAvoRoute && !isAuthRoute) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role === "avo") {
+  if (user && !isAuthRoute) {
+    const { data: profile } = await supabase.from("profiles").select("role, active").eq("id", user.id).single();
+    // A deactivated employee (or a login with no staff profile) is signed out.
+    // RLS already denies them everything via my_role(); this ends the session.
+    if (!profile?.active) {
+      await supabase.auth.signOut({ scope: "local" });
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "?error=inactive";
+      const redirect = NextResponse.redirect(url);
+      for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+      return redirect;
+    }
+    if (profile.role === "avo" && !isAvoRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/avo";
       return NextResponse.redirect(url);

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 import { getCurrentPermissions } from "@/lib/current-user";
 
 export interface PurchaseItemInput {
@@ -37,7 +38,7 @@ export async function createPurchaseAction(input: {
     .select("id")
     .single();
 
-  if (purchaseError || !purchase) return { ok: false, error: purchaseError?.message ?? "Could not create purchase." };
+  if (purchaseError || !purchase) return { ok: false, error: friendlyDbError(purchaseError, "Could not create purchase.") };
 
   // on_purchase_item trigger bumps products.stock/cost and purchases.total per row inserted
   const { error: itemsError } = await supabase.from("purchase_items").insert(
@@ -49,7 +50,7 @@ export async function createPurchaseAction(input: {
     }))
   );
 
-  if (itemsError) return { ok: false, error: itemsError.message };
+  if (itemsError) return { ok: false, error: friendlyDbError(itemsError) };
 
   revalidatePath("/vendors");
   revalidatePath("/products");

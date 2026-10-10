@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopMonthStartStr, shopTodayStartISO, shopTodayStr } from "@/lib/shop-time";
 
 export interface ExpenseRow {
   id: string;
@@ -17,25 +18,15 @@ export interface ExpensesData {
   cashPositionToday: number;
 }
 
-function startOfMonthISO() {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export async function getExpensesData(): Promise<ExpensesData> {
   const supabase = await createClient();
-  const monthStart = startOfMonthISO();
+  const monthStart = shopMonthStartStr();
 
   const [expensesRes, receiptsTodayRes, expensesTodayRes] = await Promise.all([
     supabase.from("expenses").select("id, category, description, amount, account, spent_on").gte("spent_on", monthStart).order("spent_on", { ascending: false }),
-    supabase.from("receipts").select("amount").gte("collected_at", startOfTodayISO()),
-    supabase.from("expenses").select("amount").gte("spent_on", new Date().toISOString().slice(0, 10)),
+    supabase.from("receipts").select("amount").gte("collected_at", shopTodayStartISO()),
+    supabase.from("expenses").select("amount").gte("spent_on", shopTodayStr()),
   ]);
 
   if (expensesRes.error) throw new Error(expensesRes.error.message);

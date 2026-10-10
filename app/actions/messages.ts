@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 import { money } from "@/lib/money";
 
 export async function queueReminderAction(input: {
@@ -15,8 +16,8 @@ export async function queueReminderAction(input: {
     supabase.from("message_templates").select("body, channel").eq("key", "reminder").single(),
   ]);
 
-  if (custError || !customer) return { ok: false, error: custError?.message ?? "Customer not found" };
-  if (tplError || !template) return { ok: false, error: tplError?.message ?? "Template not found" };
+  if (custError || !customer) return { ok: false, error: friendlyDbError(custError, "Customer not found") };
+  if (tplError || !template) return { ok: false, error: friendlyDbError(tplError, "Template not found") };
 
   const body = template.body
     .replaceAll("{{name}}", customer.full_name)
@@ -31,7 +32,7 @@ export async function queueReminderAction(input: {
     status: "queued" as const,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true };
 }
 
@@ -48,7 +49,7 @@ export async function queueMonthRemindersAction(input: {
     .eq("key", "reminder")
     .single();
 
-  if (tplError || !template) return { ok: false, error: tplError?.message ?? "Template not found" };
+  if (tplError || !template) return { ok: false, error: friendlyDbError(tplError, "Template not found") };
 
   const rows = input.customers.map((c) => ({
     customer_id: c.customerId,
@@ -62,6 +63,6 @@ export async function queueMonthRemindersAction(input: {
   }));
 
   const { error } = await supabase.from("messages").insert(rows);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, count: rows.length };
 }

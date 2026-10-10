@@ -44,6 +44,7 @@ export const agreementFormSchema = z
     plan: z.union([z.literal(12), z.literal(10), z.literal(0)]).nullable(),
     advance: z.number().min(0, "Can't be negative"),
     paymentMode: z.enum(["cash", "bank", "jazzcash", "easypaisa"]),
+    paymentAccount: z.enum(["cash_in_hand", "meezan_bank", "jazzcash"]),
   })
   .superRefine((data, ctx) => {
     if (data.mode === "new") {
@@ -65,6 +66,12 @@ export const agreementFormSchema = z
     }
 
     const isInstallment = data.plan === 12 || data.plan === 10;
+    if (isInstallment) {
+      const total = validItems.reduce((t, i) => t + i.qty * i.unitPrice, 0);
+      if (total > 0 && data.advance >= total) {
+        ctx.addIssue({ code: "custom", path: ["advance"], message: "Advance covers the whole price — use Direct sale" });
+      }
+    }
     if (isInstallment && !data.useExistingGuarantors) {
       for (const slot of ["guarantor1", "guarantor2"] as const) {
         const g = data[slot];
@@ -107,6 +114,7 @@ export function defaultAgreementValues(): AgreementFormValues {
     plan: null,
     advance: 0,
     paymentMode: "cash",
+    paymentAccount: "cash_in_hand",
   };
 }
 

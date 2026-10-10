@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
 
@@ -53,11 +54,6 @@ interface ReceiptRow {
   profiles: { full_name: string } | null;
 }
 
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient();
@@ -69,7 +65,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     supabase
       .from("receipts")
       .select("id, amount, mode, collected_at, collected_by, customers(full_name), profiles(full_name)")
-      .gte("collected_at", startOfTodayISO())
+      .gte("collected_at", shopTodayStartISO())
       .order("collected_at", { ascending: false }),
   ]);
 
@@ -147,4 +143,22 @@ export async function getDashboardData(): Promise<DashboardData> {
     officers,
     receiptsToday,
   };
+}
+
+// 4c: installments.status is advanced by the daily mark_installment_statuses
+// cron (0005/0006). If it stops running, the ledger and the receivable report
+// drift from the dashboard. Returns a warning when its last run is stale.
+export async function getStatusJobWarning(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("job_runs")
+    .select("last_run_at")
+    .eq("job", "mark_installment_statuses")
+    .maybeSingle();
+  if (error) return null;
+  if (!data) return "The daily installment-status job has never run — check pg_cron in Supabase.";
+  const ageHours = (Date.now() - new Date(data.last_run_at).getTime()) / 3_600_000;
+  if (ageHours <= 26) return null;
+  const when = new Date(data.last_run_at).toLocaleString("en-US", { timeZone: "Asia/Karachi", dateStyle: "medium", timeStyle: "short" });
+  return `Installment statuses were last updated ${when} — the daily job isn't running, so ledger statuses may be stale. Check pg_cron in Supabase.`;
 }

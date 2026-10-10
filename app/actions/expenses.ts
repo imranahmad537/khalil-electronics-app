@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 import { getCurrentPermissions } from "@/lib/current-user";
 
 export interface ExpenseInput {
@@ -33,7 +34,7 @@ export async function createExpenseAction(input: ExpenseInput): Promise<{ ok: tr
     created_by: user?.id ?? null,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/expenses");
   return { ok: true };
 }
@@ -58,7 +59,7 @@ export async function updateExpenseAction(
     })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/expenses");
   return { ok: true };
 }

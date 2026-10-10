@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopMonthStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
 import type { CollectAgreement } from "@/components/collect-dialog";
@@ -23,12 +24,6 @@ export interface AvoData {
   outstanding: number;
 }
 
-function startOfMonthISO() {
-  const d = new Date();
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export async function getAvoData(): Promise<AvoData | null> {
   const supabase = await createClient();
@@ -42,7 +37,7 @@ export async function getAvoData(): Promise<AvoData | null> {
     // RLS (avo_read) already scopes this to the officer's own customers.
     supabase.from("customer_month_status").select("*").order("full_name"),
     fetchOpenInstallments(supabase),
-    supabase.from("receipts").select("amount").eq("collected_by", user.id).gte("collected_at", startOfMonthISO()),
+    supabase.from("receipts").select("amount").eq("collected_by", user.id).gte("collected_at", shopMonthStartISO()),
   ]);
 
   if (statusRes.error) throw new Error(statusRes.error.message);

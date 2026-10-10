@@ -4,16 +4,12 @@ import { Controller, useFormContext } from "react-hook-form";
 import { Receipt } from "lucide-react";
 import { PlanCard } from "@/components/plan-card";
 import { ScheduleTable } from "@/components/schedule-table";
+import { money } from "@/lib/money";
+import { MONEY_ACCOUNTS, PAY_MODES, defaultAccountFor } from "@/lib/payment";
 import type { AgreementFormValues } from "@/lib/agreement-schema";
 
 const inputCls = "px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-ink outline-none";
 const labelCls = "text-[11.5px] font-bold text-ink2";
-const MODES = [
-  { value: "cash", label: "Cash" },
-  { value: "bank", label: "Bank" },
-  { value: "jazzcash", label: "JazzCash" },
-  { value: "easypaisa", label: "Easypaisa" },
-] as const;
 
 function firstDueLabel() {
   const d = new Date();
@@ -22,12 +18,20 @@ function firstDueLabel() {
   return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
 }
 
+// Installments are scheduled against (total − advance); the advance is not
+// charged on top. Mirrors create_sale() in 0006_hardening.sql.
+export function financedAmount(total: number, advance: number) {
+  return Math.max(0, total - (advance || 0));
+}
+
 export function PaymentSection({ total }: { total: number }) {
   const { control, watch, setValue, formState } = useFormContext<AgreementFormValues>();
   const plan = watch("plan");
+  const advance = watch("advance");
   const errors = formState.errors;
+  const financed = financedAmount(total, advance);
 
-  const monthlyFor = (p: 10 | 12) => Math.round(total / p) || 0;
+  const monthlyFor = (p: 10 | 12) => Math.round(financed / p) || 0;
 
   return (
     <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-4">
@@ -46,25 +50,32 @@ export function PaymentSection({ total }: { total: number }) {
       {errors.plan && <span className="text-[11px] font-semibold text-red">{errors.plan.message}</span>}
 
       <div className="form-grid-2">
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Advance received</label>
-          <Controller
-            name="advance"
-            control={control}
-            render={({ field }) => (
-              <div className="relative">
-                <span className="absolute left-[15px] top-1/2 -translate-y-1/2 text-[13.5px] text-ink3">Rs</span>
-                <input
-                  value={field.value || ""}
-                  onChange={(e) => field.onChange(Number(e.target.value.replace(/[^0-9.]/g, "")) || 0)}
-                  inputMode="numeric"
-                  className={`num ${inputCls} pl-[36px] w-full`}
-                />
-              </div>
-            )}
-          />
-          {errors.advance && <span className="text-[11px] font-semibold text-red">{errors.advance.message}</span>}
-        </div>
+        {plan !== 0 ? (
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Advance received</label>
+            <Controller
+              name="advance"
+              control={control}
+              render={({ field }) => (
+                <div className="relative">
+                  <span className="absolute left-[15px] top-1/2 -translate-y-1/2 text-[13.5px] text-ink3">Rs</span>
+                  <input
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(Number(e.target.value.replace(/[^0-9.]/g, "")) || 0)}
+                    inputMode="numeric"
+                    className={`num ${inputCls} pl-[36px] w-full`}
+                  />
+                </div>
+              )}
+            />
+            {errors.advance && <span className="text-[11px] font-semibold text-red">{errors.advance.message}</span>}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Collect today</label>
+            <div className={`num ${inputCls} font-bold`}>{money(total)}</div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Payment mode</label>
@@ -73,11 +84,14 @@ export function PaymentSection({ total }: { total: number }) {
             control={control}
             render={({ field }) => (
               <div className="flex gap-[6px] flex-wrap">
-                {MODES.map((m) => (
+                {PAY_MODES.map((m) => (
                   <button
                     key={m.value}
                     type="button"
-                    onClick={() => field.onChange(m.value)}
+                    onClick={() => {
+                      field.onChange(m.value);
+                      setValue("paymentAccount", defaultAccountFor(m.value));
+                    }}
                     className="rounded-full px-[13px] py-[8px] text-[12px] font-bold border"
                     style={{
                       background: field.value === m.value ? "var(--ink)" : "#fff",
@@ -91,6 +105,19 @@ export function PaymentSection({ total }: { total: number }) {
               </div>
             )}
           />
+          <Controller
+            name="paymentAccount"
+            control={control}
+            render={({ field }) => (
+              <select {...field} aria-label="Posted to account" className={`${inputCls} mt-1`}>
+                {MONEY_ACCOUNTS.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    Posted to: {a.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
         </div>
       </div>
 
@@ -101,9 +128,10 @@ export function PaymentSection({ total }: { total: number }) {
             <span className="font-bold">{firstDueLabel()}</span>
           </div>
           <p className="text-[12px] text-ink2 leading-[1.5]">
-            Today: advance + 1st installment. Remaining {plan - 1} installments due 1st–5th of each month.
+            Today: advance + 1st installment. The advance is deducted from the price; the remaining {money(financed)} is split over{" "}
+            {plan} installments, {plan - 1} of them due 1st–5th of each following month.
           </p>
-          <ScheduleTable total={total} plan={plan} />
+          <ScheduleTable total={financed} plan={plan} />
         </>
       )}
       {plan === 0 && (

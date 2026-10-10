@@ -157,7 +157,9 @@ export function EmployeeProfileButton({ employee }: { employee: EmployeeRow }) {
   function deactivate() {
     startTransition(async () => {
       const res = await deactivateEmployeeAction(employee.id);
-      showToast(res.ok ? `${employee.fullName} marked inactive` : res.error);
+      showToast(
+        res.ok ? `${employee.fullName} marked inactive — login disabled${res.warning ? `. ${res.warning}` : ""}` : res.error
+      );
       setOpen(false);
       router.refresh();
     });

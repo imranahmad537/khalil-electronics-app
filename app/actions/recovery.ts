@@ -2,42 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 
-export async function approveVerificationAction(
-  verificationId: string
+// Owner/manager override. Approval belongs to the AVO's house visit; the
+// office can only reject — at any stage, including after the AVO approved.
+// reject_verification() cancels exactly that verification's agreement and
+// restores stock, or refuses if field collections were already posted.
+export async function rejectVerificationAction(
+  verificationId: string,
+  reason: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("approve_verification", { p_verification: verificationId });
-  if (error) return { ok: false, error: error.message };
+  const { error } = await supabase.rpc("reject_verification", { p_verification: verificationId, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not reject this verification.") };
 
   revalidatePath("/recovery");
   revalidatePath("/customers");
   revalidatePath("/dashboard");
-  return { ok: true };
-}
-
-export async function rejectVerificationAction(
-  verificationId: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await createClient();
-  const { data: verification, error: fetchError } = await supabase
-    .from("verifications")
-    .select("customer_id")
-    .eq("id", verificationId)
-    .single();
-  if (fetchError || !verification) return { ok: false, error: fetchError?.message ?? "Verification not found." };
-
-  const { error } = await supabase.from("verifications").update({ status: "rejected" }).eq("id", verificationId);
-  if (error) return { ok: false, error: error.message };
-
-  await supabase
-    .from("agreements")
-    .update({ status: "cancelled" })
-    .eq("customer_id", verification.customer_id)
-    .eq("status", "pending_verification");
-
-  revalidatePath("/recovery");
-  revalidatePath("/customers");
+  revalidatePath("/products");
   return { ok: true };
 }
 
@@ -50,7 +32,7 @@ export async function bulkAssignAvoAction(input: {
 
   const supabase = await createClient();
   const { error } = await supabase.from("customers").update({ avo_id: input.avoId }).in("id", input.customerIds);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath("/recovery");
   revalidatePath("/customers");

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentPermissions } from "@/lib/current-user";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { friendlyDbError } from "@/lib/db-errors";
 import type { UserRole } from "@/lib/types";
 
 export interface EmployeeInput {
@@ -30,7 +32,7 @@ export async function createEmployeeAction(input: EmployeeInput): Promise<{ ok: 
     joined_on: input.joinedOn || null,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/employees");
   return { ok: true };
 }
@@ -55,17 +57,30 @@ export async function updateEmployeeAction(
     })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/employees");
   return { ok: true };
 }
 
-export async function deactivateEmployeeAction(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+// Deactivating an employee also switches off their login: set_employee_active
+// flips profiles.active (which my_role()/RLS check), and the auth user is
+// banned so their session can't be refreshed.
+export async function deactivateEmployeeAction(id: string): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
   if (!(await getCurrentPermissions()).canManageEmployees) return FORBIDDEN;
 
   const supabase = await createClient();
-  const { error } = await supabase.from("employees").update({ active: false }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const { data: profileId, error } = await supabase.rpc("set_employee_active", { p_employee: id, p_active: false });
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not deactivate this employee.") };
+
+  let warning: string | undefined;
+  if (profileId) {
+    const admin = createAdminClient();
+    const banned = admin ? await admin.auth.admin.updateUserById(profileId as string, { ban_duration: "876000h" }) : null;
+    if (!banned || banned.error) {
+      warning = "Access is revoked, but their current session couldn't be signed out — it expires within the hour.";
+    }
+  }
+
   revalidatePath("/employees");
-  return { ok: true };
+  return { ok: true, warning };
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-errors";
 import { getCurrentPermissions } from "@/lib/current-user";
 
 export async function recordVendorPaymentAction(input: {
@@ -24,7 +25,7 @@ export async function recordVendorPaymentAction(input: {
     notes: input.notes.trim() || null,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/vendors");
   return { ok: true };
 }

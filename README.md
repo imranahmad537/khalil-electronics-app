@@ -25,20 +25,22 @@ This is an office and field system for an electronics shop that sells mobiles, f
 
 ## Business rules (implement exactly)
 
-1. **Monthly installment** = `total_price / plan_months`, rounded. The last installment absorbs the rounding difference so the sum equals the total.
+1. **Monthly installment** = `(total_price − advance) / plan_months`, rounded. The advance is a down payment, not an extra charge, so `advance + Σ installments = total_price`. The last installment absorbs the rounding difference.
 2. **At signing**, the customer pays the **advance plus installment 1**. On a 12 month plan, 11 installments remain. They are due on the **1st of each following month**.
 3. **Collection window** is the 1st to the 5th. After the 5th, an unpaid installment becomes **overdue**.
 4. **Carry-forward**: if the customer pays less than what is owed, the shortfall is added to the next installment's `carry_in`. Example: Rs 10,000 paid against Rs 10,050 moves Rs 50 forward. An overpayment becomes a negative carry, which reduces the next installment.
 5. **Multiple purchases**: each sale is its own agreement. A customer who buys in August and again in September has two agreements. Office and field views show **one combined monthly due per customer** (the sum across open agreements). The ledger lists each agreement separately.
-6. **Agreement lifecycle**: `pending_verification` → (AVO approves the house visit) → `open` → (all installments paid) → `closed`. A direct sale is created as `closed`.
+6. **Agreement lifecycle**: `pending_verification` → (AVO approves the house visit, with at least one photo) → `open` → (all installments paid) → `closed`. A direct sale is created as `closed`. The AVO can reject the visit, and an owner or manager can reject at any stage; either one moves the agreement to `cancelled` and returns its stock.
 7. **Status per customer per month:**
    - `paid`: nothing owed
    - `short`: a carry exists
    - `due`: unpaid, inside the window
    - `overdue`: past the 5th, or one month behind
    - `default`: two or more months behind. Flag the guarantors for contact.
+8. **Money at the counter is a receipt.** At signing, `create_sale` writes a receipt for the advance plus installment 1 (or the full price for a direct sale), with the real pay mode and account.
+9. **Overpayment beyond the balance is refused.** A payment larger than what is still owed on the agreement is rejected; take the exact balance instead.
 
-All of this is in `supabase/migrations/0002_billing.sql`:
+All of this is in `supabase/migrations/0002_billing.sql`, superseded by `0006_hardening.sql` (`create_sale`, `post_receipt`, `submit_visit`, `reject_verification`):
 - `create_agreement`
 - `post_receipt`
 - `approve_verification`
@@ -55,7 +57,16 @@ Always call these through `supabase.rpc()`. Never compute balances on the client
 | sales | customers, agreements, products (read) |
 | avo | field app only: their assigned customers, post receipts, verifications |
 
-These are enforced with RLS in `0003_rls.sql`. Next.js middleware sends AVO users to `/avo`.
+These are enforced with RLS in `0003_rls.sql` and `0006_hardening.sql`. Agreements, installments, receipts and verifications are read-only through the API; they change only through the RPCs. A deactivated profile (`profiles.active = false`) has no role at all. Next.js middleware sends AVO users to `/avo` and signs out deactivated users.
+
+## Go-live checklist
+
+- [ ] `supabase db push`: applies 0001–0006.
+- [ ] Check pg_cron is enabled and `mark-installment-statuses` runs at 19:05 UTC (00:05 Karachi). The dashboard warns if it hasn't run in 26 hours.
+- [ ] **Schedule the message sender.** The cron jobs only *queue* WhatsApp/SMS rows in `messages`. Nothing is sent until `supabase/functions/send-messages` runs on a schedule (Supabase Dashboard → Edge Functions → send-messages → Cron). Without it, messages stay `queued` forever and nothing reports an error.
+- [ ] Set `SUPABASE_SERVICE_ROLE_KEY` on the server (not `NEXT_PUBLIC_`). Deactivating an employee uses it to ban their login.
+- [ ] Correct any negative `products.stock`, then run `alter table products validate constraint products_stock_nonnegative;`.
+- [ ] Confirm the database timezone is `Asia/Karachi`: `show timezone;` in a new SQL session.
 
 ## Suggested project structure
 ```

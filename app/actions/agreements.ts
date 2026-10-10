@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { matchAvoByArea } from "@/lib/avo-matching";
+import { friendlyDbError } from "@/lib/db-errors";
+import { isMoneyAccount, isPayMode, type MoneyAccount, type PayMode } from "@/lib/payment";
 
 export interface AgreementItemInput {
   productId: string;
@@ -32,6 +34,8 @@ export interface NewCustomerInput {
 }
 
 export interface CreateAgreementInput {
+  /** Generated once per form submission and reused on retry — makes Save idempotent. */
+  clientRef: string;
   mode: "new" | "existing";
   customerId: string | null;
   newCustomer: NewCustomerInput | null;
@@ -41,151 +45,125 @@ export interface CreateAgreementInput {
   items: AgreementItemInput[];
   plan: 12 | 10 | 0;
   advance: number;
+  paymentMode: PayMode;
+  paymentAccount: MoneyAccount;
 }
 
-async function pickAvoForArea(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  area: string | null
-): Promise<string | null> {
-  const { data: officers } = await supabase.from("profiles").select("id, zone").eq("role", "avo").eq("active", true);
-  if (!officers || officers.length === 0) return null;
+export type CreateAgreementResult =
+  | {
+      ok: true;
+      customerId: string;
+      agreementNo: number;
+      receiptId: string | null;
+      avoName: string | null;
+      isInstallment: boolean;
+    }
+  | { ok: false; error: string };
 
-  const match = area ? matchAvoByArea(area, officers) : null;
-  if (match) return match.id;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const { data: counts } = await supabase.from("customers").select("avo_id");
-  const byOfficer = new Map(officers.map((o) => [o.id, 0]));
-  for (const row of counts ?? []) {
-    if (row.avo_id && byOfficer.has(row.avo_id)) byOfficer.set(row.avo_id, (byOfficer.get(row.avo_id) ?? 0) + 1);
-  }
-  const sorted = [...byOfficer.entries()].sort((a, b) => a[1] - b[1]);
-  return sorted[0]?.[0] ?? officers[0].id;
-}
-
-export async function createNewAgreementAction(
-  input: CreateAgreementInput
-): Promise<
-  | { ok: true; customerId: string; agreementNo: number; avoName: string | null; isInstallment: boolean }
-  | { ok: false; error: string }
-> {
+// Customer, guarantors, agreement, stock, schedule, signing-day receipt and
+// verification are written by one create_sale() call — one transaction, so a
+// failure leaves nothing behind, and a retry with the same clientRef returns
+// the sale that was already saved instead of creating a second one.
+export async function createNewAgreementAction(input: CreateAgreementInput): Promise<CreateAgreementResult> {
+  if (!UUID.test(input.clientRef)) return { ok: false, error: "Refresh the page and try again." };
   const items = input.items.filter((i) => i.productId && i.qty > 0);
   if (items.length === 0) return { ok: false, error: "Add at least one product." };
   if (input.plan !== 12 && input.plan !== 10 && input.plan !== 0) {
     return { ok: false, error: "Choose a payment plan." };
+  }
+  if (!isPayMode(input.paymentMode) || !isMoneyAccount(input.paymentAccount)) {
+    return { ok: false, error: "Choose how the payment was received." };
   }
   const isInstallment = input.plan !== 0;
   if (input.mode === "new" && !input.newCustomer) return { ok: false, error: "Customer details are required." };
   if (input.mode === "existing" && !input.customerId) return { ok: false, error: "Choose an existing customer." };
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  let customerId = input.customerId;
-
+  let newCustomer: Record<string, string | null> | null = null;
   if (input.mode === "new" && input.newCustomer) {
     const nc = input.newCustomer;
     if (!nc.fullName.trim() || !nc.cell.trim()) {
       return { ok: false, error: "Customer name and cell number are required." };
     }
-    const avoId = nc.avoId || (await pickAvoForArea(supabase, nc.area || null));
-
-    const { data: customer, error: customerError } = await supabase
-      .from("customers")
-      .insert({
-        full_name: nc.fullName.trim(),
-        father_name: nc.fatherName.trim() || null,
-        cell: nc.cell.trim(),
-        cell2: nc.cell2.trim() || null,
-        cnic: nc.cnic.trim() || null,
-        address: nc.address.trim() || null,
-        area: nc.area.trim() || null,
-        occupation: nc.occupation.trim() || null,
-        avo_id: avoId,
-        created_by: user?.id ?? null,
-      })
-      .select("id")
-      .single();
-
-    if (customerError || !customer) return { ok: false, error: customerError?.message ?? "Could not create customer." };
-    customerId = customer.id;
+    let avoId = nc.avoId;
+    if (!avoId && nc.area.trim()) {
+      const { data: officers } = await supabase.from("profiles").select("id, zone").eq("role", "avo").eq("active", true);
+      avoId = officers ? (matchAvoByArea(nc.area, officers)?.id ?? null) : null;
+    }
+    // no area match → create_sale falls back to the least-loaded AVO
+    newCustomer = {
+      full_name: nc.fullName,
+      father_name: nc.fatherName,
+      cnic: nc.cnic,
+      cell: nc.cell,
+      cell2: nc.cell2,
+      address: nc.address,
+      area: nc.area,
+      occupation: nc.occupation,
+      avo_id: avoId,
+    };
   }
 
-  if (!customerId) return { ok: false, error: "No customer selected." };
+  const guarantors =
+    isInstallment && !input.useExistingGuarantors
+      ? [
+          { slot: 1, ...toGuarantorRow(input.guarantor1) },
+          { slot: 2, ...toGuarantorRow(input.guarantor2) },
+        ]
+      : null;
 
-  if (isInstallment && !input.useExistingGuarantors) {
-    const { error: gError } = await supabase.from("guarantors").upsert(
-      [
-        { customer_id: customerId, slot: 1, ...toGuarantorRow(input.guarantor1) },
-        { customer_id: customerId, slot: 2, ...toGuarantorRow(input.guarantor2) },
-      ],
-      { onConflict: "customer_id,slot" }
-    );
-    if (gError) return { ok: false, error: gError.message };
-  }
-
-  const { data: agreementId, error: agreementError } = await supabase.rpc("create_agreement", {
-    p_customer: customerId,
-    p_sale: isInstallment ? "installment" : "direct",
-    // p_plan / p_officer are nullable in SQL (direct sales, no officer) but the
-    // generated types don't capture that — see lib/database.types.ts.
-    p_plan: (isInstallment ? input.plan : null) as number,
+  const { data, error } = await supabase.rpc("create_sale", {
+    p_client_ref: input.clientRef,
+    p_customer_id: input.mode === "existing" ? input.customerId : null,
+    p_new_customer: newCustomer,
+    p_guarantors: guarantors,
     p_items: items.map((i) => ({
       product_id: i.productId,
       qty: i.qty,
       unit_price: i.unitPrice,
-      serial_no: i.serialNo || null,
+      serial_no: i.serialNo.trim() || null,
     })),
-    p_advance: input.advance,
-    p_officer: (user?.id ?? null) as string,
+    p_plan: isInstallment ? input.plan : null,
+    p_advance: isInstallment ? input.advance : 0,
+    p_mode: input.paymentMode,
+    p_account: input.paymentAccount,
   });
 
-  if (agreementError) return { ok: false, error: agreementError.message };
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not save the agreement.") };
 
-  const { data: agreement } = await supabase
-    .from("agreements")
-    .select("agreement_no")
-    .eq("id", agreementId as string)
-    .single();
-
-  let avoName: string | null = null;
-  if (isInstallment) {
-    const { data: customer } = await supabase.from("customers").select("avo_id").eq("id", customerId).single();
-    const avoId = customer?.avo_id ?? (await pickAvoForArea(supabase, null));
-    if (avoId) {
-      const { error: verificationError } = await supabase.from("verifications").insert({
-        customer_id: customerId,
-        avo_id: avoId,
-        status: "pending",
-      });
-      if (verificationError) return { ok: false, error: verificationError.message };
-
-      const { data: avoProfile } = await supabase.from("profiles").select("full_name").eq("id", avoId).single();
-      avoName = avoProfile?.full_name ?? null;
-    }
-  }
+  const result = data as {
+    agreement_no: number;
+    customer_id: string;
+    receipt_id: string | null;
+    avo_name: string | null;
+  };
 
   revalidatePath("/customers");
   revalidatePath("/dashboard");
   revalidatePath("/recovery");
-  revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/receipts");
+  revalidatePath("/products");
+  revalidatePath(`/customers/${result.customer_id}`);
 
   return {
     ok: true,
-    customerId,
-    agreementNo: agreement?.agreement_no ?? 0,
-    avoName,
+    customerId: result.customer_id,
+    agreementNo: result.agreement_no,
+    receiptId: result.receipt_id,
+    avoName: result.avo_name,
     isInstallment,
   };
 }
 
 function toGuarantorRow(g: GuarantorInput) {
   return {
-    full_name: g.name.trim(),
-    cnic: g.cnic.trim() || null,
-    cell: g.cell.trim() || null,
-    relation: g.relation || null,
-    address: g.address.trim() || null,
+    full_name: g.name,
+    cnic: g.cnic,
+    cell: g.cell,
+    relation: g.relation,
+    address: g.address,
   };
 }

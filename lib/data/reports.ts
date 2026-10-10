@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopMonthRange, shopMonthStartStr } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 
+// Month bounds on the shop calendar (Asia/Karachi), not the server's.
 function monthRange(monthKey?: string) {
-  const d = monthKey ? new Date(monthKey + "-01T00:00:00") : new Date();
-  const start = new Date(d.getFullYear(), d.getMonth(), 1);
-  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-  return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
+  const r = shopMonthRange(monthKey);
+  return { ...r, start: new Date(r.startISO), end: new Date(r.endISO) };
 }
 
 // ---------- Installments received ----------
@@ -94,8 +94,7 @@ export async function getInstallmentsReceivableReport() {
   };
 
   const byAgreement = new Map<string, ReceivableRow>();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStart = shopMonthStartStr();
 
   for (const r of (data ?? []) as unknown as Row[]) {
     const ag = r.agreements;
@@ -103,7 +102,7 @@ export async function getInstallmentsReceivableReport() {
     const owed = r.due_amount + r.carry_in - r.paid;
     if (owed <= 0) continue;
     const existing = byAgreement.get(r.agreement_id);
-    const behind = new Date(r.due_month) < monthStart ? 1 : 0;
+    const behind = r.due_month < monthStart ? 1 : 0;
     if (existing) {
       existing.dueAmount += owed;
       existing.monthsBehind += behind;
@@ -226,14 +225,13 @@ export interface ProfitLossReport {
 
 export async function getProfitLossReport(monthKey?: string): Promise<ProfitLossReport> {
   const supabase = await createClient();
-  const { startISO, endISO, start, end } = monthRange(monthKey);
-  const startDate = start.toISOString().slice(0, 10);
-  const endDate = end.toISOString().slice(0, 10);
+  const { startISO, endISO, startDate, endDate } = monthRange(monthKey);
 
   const [agreementsRes, receiptsRes, expensesRes] = await Promise.all([
     supabase
       .from("agreements")
       .select("id, sale_type, total_price, opened_on, agreement_items(qty, products(cost))")
+      .neq("status", "cancelled")
       .gte("opened_on", startDate)
       .lt("opened_on", endDate),
     supabase.from("receipts").select("amount").gte("collected_at", startISO).lt("collected_at", endISO),
@@ -257,7 +255,6 @@ export async function getProfitLossReport(monthKey?: string): Promise<ProfitLoss
     (t, a) => t + a.agreement_items.reduce((s, it) => s + it.qty * (it.products?.cost ?? 0), 0),
     0
   );
-  const directSalesCash = agreements.filter((a) => a.sale_type === "direct").reduce((t, a) => t + a.total_price, 0);
   const recoveryThisMonth = ((receiptsRes.data ?? []) as { amount: number }[]).reduce((t, r) => t + r.amount, 0);
   const expensesThisMonth = ((expensesRes.data ?? []) as { amount: number }[]).reduce((t, r) => t + r.amount, 0);
 
@@ -267,6 +264,7 @@ export async function getProfitLossReport(monthKey?: string): Promise<ProfitLoss
     grossMargin: salesThisMonth - cogs,
     recoveryThisMonth,
     expensesThisMonth,
-    netCashPosition: recoveryThisMonth + directSalesCash - expensesThisMonth,
+    // receipts already include signing-day money and direct sales (create_sale writes them)
+    netCashPosition: recoveryThisMonth - expensesThisMonth,
   };
 }

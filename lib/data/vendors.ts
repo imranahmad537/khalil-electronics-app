@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { shopMonthStartStr } from "@/lib/shop-time";
 
 export interface VendorRow {
   id: string;
@@ -17,11 +18,6 @@ export interface VendorsData {
   paidThisMonth: number;
 }
 
-function startOfMonthDateStr() {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
 
 export async function getVendorsData(): Promise<VendorsData> {
   const supabase = await createClient();
@@ -44,7 +40,7 @@ export async function getVendorsData(): Promise<VendorsData> {
   const purchases = (purchasesRes.data ?? []) as PurchaseRecord[];
   const payments = (paymentsRes.data ?? []) as PaymentRecord[];
 
-  const monthStart = startOfMonthDateStr();
+  const monthStart = shopMonthStartStr();
 
   const rows: VendorRow[] = vendors.map((v) => {
     const mine = purchases.filter((p) => p.vendor_id === v.id);

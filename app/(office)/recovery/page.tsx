@@ -6,6 +6,7 @@ import { AssignDialog } from "@/components/assign-dialog";
 import { VerificationQueue } from "@/components/verification-queue";
 import { money } from "@/lib/money";
 import { getRecoveryData, getAssignableCustomers } from "@/lib/data/recovery";
+import { getCurrentPermissions } from "@/lib/current-user";
 
 const GRID = "minmax(180px,1.5fr) minmax(170px,1.4fr) 96px minmax(112px,1fr) minmax(112px,1fr) 104px";
 const COLUMNS = [
@@ -18,7 +19,7 @@ const COLUMNS = [
 ];
 
 export default async function RecoveryPage() {
-  const [data, assignable] = await Promise.all([getRecoveryData(), getAssignableCustomers()]);
+  const [data, assignable, permissions] = await Promise.all([getRecoveryData(), getAssignableCustomers(), getCurrentPermissions()]);
   const officerOptions = data.officers.map((o) => ({ id: o.id, name: o.name }));
 
   const rows: DataRow[] = data.officers.map((o) => ({
@@ -89,8 +90,8 @@ export default async function RecoveryPage() {
         />
         <StatTile
           label="Verification pending"
-          value={String(data.verifications.length)}
-          note="House visits awaiting review"
+          value={String(data.verifications.filter((v) => v.status === "pending").length)}
+          note="House visits awaiting the AVO"
           tone="warn"
           icon={ShieldAlert}
         />
@@ -101,7 +102,7 @@ export default async function RecoveryPage() {
         <DataTable gridTemplate={GRID} columns={COLUMNS} rows={rows} minWidth={900} emptyMessage="No active officers yet." />
       </div>
 
-      <VerificationQueue verifications={data.verifications} />
+      <VerificationQueue verifications={data.verifications} canReject={permissions.role === "owner" || permissions.role === "manager"} />
     </div>
   );
 }

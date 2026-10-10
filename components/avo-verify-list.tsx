@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, CheckCircle, Home } from "lucide-react";
+import { Camera, CheckCircle, Home, XCircle } from "lucide-react";
 import { submitVisitAction } from "@/app/actions/verifications";
 import { getPositionSafe } from "@/lib/offline-queue";
 import { showToast } from "@/lib/toast";
@@ -17,13 +17,22 @@ function VerificationCard({ v }: { v: AvoVerification }) {
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function approve() {
+  function submit(decision: "approve" | "reject") {
     setError("");
+    if (decision === "approve" && !photo) {
+      setError("Take a house photo before approving.");
+      return;
+    }
+    if (decision === "reject" && !notes.trim()) {
+      setError("Add a note saying why the visit failed.");
+      return;
+    }
     startTransition(async () => {
       const position = await getPositionSafe();
       const formData = new FormData();
       formData.set("verificationId", v.id);
       formData.set("customerId", v.customerId);
+      formData.set("decision", decision);
       formData.set("houseType", houseType);
       formData.set("notes", notes);
       if (position) {
@@ -37,7 +46,9 @@ function VerificationCard({ v }: { v: AvoVerification }) {
         setError(res.error);
         return;
       }
-      showToast(`${v.customerName}'s agreement is now open`);
+      showToast(
+        decision === "approve" ? `${v.customerName}'s agreement is now open` : `${v.customerName}'s sale was cancelled`
+      );
       router.refresh();
     });
   }
@@ -86,19 +97,29 @@ function VerificationCard({ v }: { v: AvoVerification }) {
         className="border border-line cursor-pointer rounded-xl px-[13px] py-[10px] flex items-center gap-[8px] text-[12.5px] font-semibold text-ink2 bg-white"
       >
         <Camera size={15} strokeWidth={2.4} />
-        {photo ? photo.name : "Add house photo"}
+        {photo ? "Photo added — tap to retake" : "Add house photo (required to approve)"}
       </button>
 
       {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
 
-      <button
-        onClick={approve}
-        disabled={pending}
-        className="btnp border-0 cursor-pointer rounded-full py-[12px] flex items-center justify-center gap-[7px] text-[13px] font-bold bg-g600 text-white disabled:opacity-60"
-      >
-        <CheckCircle size={15} strokeWidth={2.4} />
-        {pending ? "Submitting…" : "Approve & open agreement"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => submit("reject")}
+          disabled={pending}
+          className="border border-line cursor-pointer rounded-full px-[16px] py-[12px] flex items-center justify-center gap-[6px] text-[13px] font-bold bg-white text-red disabled:opacity-60"
+        >
+          <XCircle size={15} strokeWidth={2.4} />
+          Reject
+        </button>
+        <button
+          onClick={() => submit("approve")}
+          disabled={pending}
+          className="btnp flex-1 border-0 cursor-pointer rounded-full py-[12px] flex items-center justify-center gap-[7px] text-[13px] font-bold bg-g600 text-white disabled:opacity-60"
+        >
+          <CheckCircle size={15} strokeWidth={2.4} />
+          {pending ? "Submitting…" : "Approve & open agreement"}
+        </button>
+      </div>
     </div>
   );
 }

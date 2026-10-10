@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Banknote } from "lucide-react";
 import { money } from "@/lib/money";
 import { postReceiptAction } from "@/app/actions/receipts";
 import { showToast } from "@/lib/toast";
-import { queueReceipt, getPositionSafe } from "@/lib/offline-queue";
+import { queueReceipt, getPositionSafe, newClientRef } from "@/lib/offline-queue";
+import { MONEY_ACCOUNTS, PAY_MODES, defaultAccountFor, type MoneyAccount, type PayMode } from "@/lib/payment";
 
 export interface CollectAgreement {
   id: string;
@@ -34,8 +35,14 @@ export function CollectDialog({
   const [agreementId, setAgreementId] = useState(agreements[0]?.id ?? "");
   const selected = agreements.find((a) => a.id === agreementId) ?? agreements[0];
   const [amount, setAmount] = useState(String(selected?.due ?? 0));
+  const [mode, setMode] = useState<PayMode>("cash");
+  const [account, setAccount] = useState<MoneyAccount>("cash_in_hand");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  // One idempotency key per collection: reused if this same collection is
+  // retried or queued, cleared once it is recorded or the dialog closes.
+  const clientRef = useRef<string | null>(null);
+  const submitting = useRef(false);
 
   const typed = useMemo(() => Number(amount.replace(/[^0-9.]/g, "")) || 0, [amount]);
   const gap = (selected?.due ?? 0) - typed;
@@ -49,6 +56,16 @@ export function CollectDialog({
         ? { bg: "var(--g50)", fg: "var(--g700)", text: `${money(-gap)} extra → reduces next month` }
         : { bg: "var(--soft)", fg: "var(--ink2)", text: "Pays this installment exactly" };
 
+  function close() {
+    clientRef.current = null;
+    onClose();
+  }
+
+  function pickMode(m: PayMode) {
+    setMode(m);
+    setAccount(defaultAccountFor(m));
+  }
+
   function pickAgreement(id: string) {
     setAgreementId(id);
     const a = agreements.find((x) => x.id === id);
@@ -56,49 +73,51 @@ export function CollectDialog({
   }
 
   function submit() {
+    if (submitting.current) return;
+    submitting.current = true;
     setError("");
+    const ref = (clientRef.current ??= newClientRef());
     startTransition(async () => {
-      const position = await getPositionSafe();
-
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        await queueReceipt({
-          agreementId: selected.id,
-          amount: typed,
-          lat: position?.lat ?? null,
-          lng: position?.lng ?? null,
-          customerName,
-          queuedAt: new Date().toISOString(),
-        });
-        showToast(`Offline — ${money(typed)} from ${customerName} queued, will sync when back online`);
-        onClose();
-        return;
-      }
-
       try {
-        const res = await postReceiptAction({
+        const position = await getPositionSafe();
+        const payload = {
           agreementId: selected.id,
           amount: typed,
+          mode,
+          account,
+          clientRef: ref,
           lat: position?.lat ?? null,
           lng: position?.lng ?? null,
-        });
+        };
+        const queue = async (why: string) => {
+          await queueReceipt({ ...payload, customerName, queuedAt: new Date().toISOString() });
+          showToast(`${why} — ${money(typed)} from ${customerName} queued, will sync when back online`);
+          close();
+        };
+
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          await queue("Offline");
+          return;
+        }
+
+        let res: Awaited<ReturnType<typeof postReceiptAction>>;
+        try {
+          res = await postReceiptAction(payload);
+        } catch {
+          // The server may have saved it before the connection dropped; the
+          // queued copy carries the same clientRef, so syncing it is a no-op then.
+          await queue("Connection lost");
+          return;
+        }
         if (!res.ok) {
           setError(res.error);
           return;
         }
         showToast(`${money(typed)} received from ${customerName}`);
         router.refresh();
-        onClose();
-      } catch {
-        await queueReceipt({
-          agreementId: selected.id,
-          amount: typed,
-          lat: position?.lat ?? null,
-          lng: position?.lng ?? null,
-          customerName,
-          queuedAt: new Date().toISOString(),
-        });
-        showToast(`Connection lost — ${money(typed)} from ${customerName} queued, will sync when back online`);
-        onClose();
+        close();
+      } finally {
+        submitting.current = false;
       }
     });
   }
@@ -114,7 +133,7 @@ export function CollectDialog({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={close}
             className="iconbtn border-0 cursor-pointer w-8 h-8 rounded-full bg-soft text-ink2 flex items-center justify-center"
           >
             <X size={16} strokeWidth={2.4} />
@@ -175,6 +194,38 @@ export function CollectDialog({
           >
             {hint.text}
           </div>
+
+          <label className="text-[11.5px] font-bold text-ink2 pt-1">Received by</label>
+          <div className="flex gap-[6px] flex-wrap">
+            {PAY_MODES.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => pickMode(m.value)}
+                className="rounded-full px-[12px] py-[6px] text-[11.5px] font-bold border"
+                style={{
+                  background: mode === m.value ? "var(--ink)" : "#fff",
+                  color: mode === m.value ? "#fff" : "var(--ink2)",
+                  borderColor: mode === m.value ? "var(--ink)" : "var(--line)",
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <select
+            value={account}
+            onChange={(e) => setAccount(e.target.value as MoneyAccount)}
+            aria-label="Posted to account"
+            className="px-[14px] py-[9px] rounded-xl border border-line bg-soft text-[12.5px] font-semibold text-ink"
+          >
+            {MONEY_ACCOUNTS.map((a) => (
+              <option key={a.value} value={a.value}>
+                Posted to: {a.label}
+              </option>
+            ))}
+          </select>
+
           {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
         </div>
 
