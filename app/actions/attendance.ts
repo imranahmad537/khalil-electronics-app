@@ -44,6 +44,21 @@ export async function markAttendanceAction(employeeId: string, day: string, stat
   return { ok: true };
 }
 
+/** Same status for several people on one day (bulk bar in the register). */
+export async function markManyAction(employeeIds: string[], day: string, status: AttendanceStatus | null): Promise<Result> {
+  if (!(await getCurrentPermissions()).canMarkAttendance) return { ok: false, error: "Only the owner or manager can mark attendance." };
+  if (!DAY.test(day)) return { ok: false, error: "Invalid date." };
+  if (employeeIds.length === 0) return { ok: false, error: "Select at least one person." };
+  if (status !== null && !MARKABLE.includes(status)) return { ok: false, error: "Unknown status." };
+  const supabase = await createClient();
+  for (const id of employeeIds) {
+    const { error } = await supabase.rpc("mark_attendance", { p_employee: id, p_day: day, p_status: status, p_note: null });
+    if (error) return { ok: false, error: friendlyDbError(error, "Could not save attendance.") };
+  }
+  refresh();
+  return { ok: true };
+}
+
 export async function markAllAction(day: string, status: "present" | "holiday"): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
   if (!(await getCurrentPermissions()).canMarkAttendance) return { ok: false, error: "Only the owner or manager can mark attendance." };
   if (!DAY.test(day)) return { ok: false, error: "Invalid date." };
@@ -60,6 +75,7 @@ export async function updateAttendanceSettingsAction(input: {
   graceMinutes: number;
   halfDayHours: number;
   weeklyOff: number;
+  unmarkedAs: "present" | "absent";
 }): Promise<Result> {
   if (!(await getCurrentPermissions()).canMarkAttendance) return { ok: false, error: "Only the owner or manager can change attendance settings." };
   if (!/^\d{2}:\d{2}$/.test(input.shiftStart)) return { ok: false, error: "Choose a shift start time." };
@@ -74,6 +90,7 @@ export async function updateAttendanceSettingsAction(input: {
       grace_minutes: Math.round(input.graceMinutes),
       half_day_hours: input.halfDayHours,
       weekly_off: input.weeklyOff,
+      unmarked_as: input.unmarkedAs === "absent" ? "absent" : "present",
     })
     .eq("id", 1);
   if (error) return { ok: false, error: friendlyDbError(error, "Could not save settings.") };

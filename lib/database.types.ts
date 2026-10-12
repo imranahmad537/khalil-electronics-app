@@ -427,6 +427,7 @@ export type Database = {
           lates_per_day: number;
           paid_leave: boolean;
           sandwich_rule: boolean;
+          unmarked_as: "present" | "absent";
         };
         Insert: never;
         Update: {
@@ -438,6 +439,7 @@ export type Database = {
           lates_per_day?: number;
           paid_leave?: boolean;
           sandwich_rule?: boolean;
+          unmarked_as?: "present" | "absent";
         };
         Relationships: [];
       };

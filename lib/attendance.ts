@@ -3,7 +3,8 @@
 
 export type AttendanceStatus = "present" | "late" | "half_day" | "leave" | "absent" | "holiday";
 /** What a calendar day shows: a recorded status, or a derived one. */
-export type DayState = AttendanceStatus | "off" | "unmarked" | "upcoming" | "not_joined" | "left";
+/** "assumed": nobody marked it and unmarked days count as present */
+export type DayState = AttendanceStatus | "assumed" | "off" | "unmarked" | "upcoming" | "not_joined" | "left";
 
 export const STATUS_LABEL: Record<DayState, string> = {
   present: "Present",
@@ -12,6 +13,7 @@ export const STATUS_LABEL: Record<DayState, string> = {
   leave: "Leave",
   absent: "Absent",
   holiday: "Holiday",
+  assumed: "Present (not marked)",
   off: "Weekly off",
   unmarked: "Not marked",
   upcoming: "—",
@@ -26,6 +28,7 @@ export const STATUS_SHORT: Record<DayState, string> = {
   leave: "LV",
   absent: "A",
   holiday: "HO",
+  assumed: "P",
   off: "OFF",
   unmarked: "?",
   upcoming: "",
@@ -40,6 +43,7 @@ export const STATUS_COLOR: Record<DayState, { bg: string; fg: string }> = {
   leave: { bg: "#eef2ff", fg: "#3730a3" },
   absent: { bg: "var(--red50)", fg: "var(--red)" },
   holiday: { bg: "var(--soft)", fg: "var(--ink2)" },
+  assumed: { bg: "#f3faf6", fg: "var(--g300)" },
   off: { bg: "var(--soft)", fg: "var(--ink3)" },
   unmarked: { bg: "var(--red50)", fg: "var(--red)" },
   upcoming: { bg: "transparent", fg: "var(--ink3)" },
@@ -57,6 +61,8 @@ export interface AttendanceSettings {
   graceMinutes: number;
   halfDayHours: number;
   weeklyOff: number; // 0=Sunday … 6=Saturday, -1 none
+  /** what a working day nobody marked counts as */
+  unmarkedAs: "present" | "absent";
 }
 
 export interface AttendanceRecord {
@@ -83,15 +89,16 @@ export function daysOfMonth(monthKey: string): string[] {
 export function dayState(
   day: string,
   record: AttendanceRecord | undefined,
-  opts: { today: string; joinedOn: string | null; leftOn?: string | null; weeklyOff: number }
+  opts: { today: string; joinedOn: string | null; leftOn?: string | null; weeklyOff: number; unmarkedAs?: "present" | "absent" }
 ): DayState {
   if (opts.leftOn && day > opts.leftOn) return "left";
   if (record) return record.status;
   if (opts.joinedOn && day < opts.joinedOn) return "not_joined";
   if (day > opts.today) return "upcoming";
   if (weekdayOf(day) === opts.weeklyOff) return "off";
+  if ((opts.unmarkedAs ?? "absent") === "present") return "assumed"; // exception mode: only absences etc. are marked
   if (day === opts.today) return "unmarked"; // the day isn't over yet
-  return "absent"; // a past working day with nothing recorded
+  return "absent"; // strict mode: a past working day with nothing recorded
 }
 
 export interface MonthSummary {
@@ -110,7 +117,7 @@ export interface MonthSummary {
 
 export function summarize(states: DayState[]): MonthSummary {
   const c = (s: DayState) => states.filter((x) => x === s).length;
-  const present = c("present"),
+  const present = c("present") + c("assumed"),
     late = c("late"),
     halfDay = c("half_day"),
     leave = c("leave"),

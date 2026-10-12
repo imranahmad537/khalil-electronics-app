@@ -56,7 +56,7 @@ export function computePay(
   const deductionDays = absentDays + halfDays / 2 + lateDays + unpaidLeave + notJoinedDays + sandwichDays;
   // Absent for every working day of the month (nothing attended, no leave or
   // holiday): no salary — otherwise the ÷30 basis would still pay the off days.
-  const attendedOrExcused = days.some((d) => ["present", "late", "half_day", "leave", "holiday"].includes(d.state));
+  const attendedOrExcused = days.some((d) => ["present", "assumed", "late", "half_day", "leave", "holiday"].includes(d.state));
   const fullMonthAbsent = !attendedOrExcused && absentDays > 0 && !days.some((d) => d.state === "upcoming" || d.state === "unmarked");
   const deduction = fullMonthAbsent ? salary : Math.min(salary, Math.round(perDayRaw * deductionDays));
 

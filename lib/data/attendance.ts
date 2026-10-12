@@ -13,7 +13,7 @@ import type { UserRole } from "@/lib/types";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-const DEFAULT_SETTINGS: AttendanceSettings = { shiftStart: "10:00", graceMinutes: 15, halfDayHours: 4, weeklyOff: 0 };
+const DEFAULT_SETTINGS: AttendanceSettings = { shiftStart: "10:00", graceMinutes: 15, halfDayHours: 4, weeklyOff: 0, unmarkedAs: "present" };
 
 export interface StaffMember {
   id: string;
@@ -35,6 +35,7 @@ async function getSettings(supabase: Supabase): Promise<AttendanceSettings> {
     graceMinutes: data.grace_minutes,
     halfDayHours: Number(data.half_day_hours),
     weeklyOff: data.weekly_off,
+    unmarkedAs: data.unmarked_as === "absent" ? "absent" : "present",
   };
 }
 
@@ -105,7 +106,7 @@ export async function getDailyRegister(day: string) {
     .filter((s) => (!s.joinedOn || s.joinedOn <= day) && (!s.leftOn || s.leftOn >= day))
     .map((employee) => {
       const record = byEmployee.get(employee.id) ?? null;
-      return { employee, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff }) };
+      return { employee, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff, unmarkedAs: settings.unmarkedAs }) };
     });
 
   return { day, today, settings, rows };
@@ -134,7 +135,7 @@ export async function getMonthlyAttendance(monthKey: string) {
   const rows: MonthlyRow[] = staff.map((employee) => {
     const perDay = days.map((day) => {
       const record = byKey.get(key(employee.id, day)) ?? null;
-      return { day, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff }) };
+      return { day, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff, unmarkedAs: settings.unmarkedAs }) };
     });
     return { employee, summary: summarize(perDay.map((d) => d.state)), days: perDay };
   });

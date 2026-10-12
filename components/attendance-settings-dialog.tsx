@@ -55,6 +55,17 @@ export function AttendanceSettingsDialog({ settings }: { settings: AttendanceSet
                 <X size={16} strokeWidth={2.4} />
               </button>
             </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Days nobody marked count as</label>
+              <select
+                className={inputCls}
+                value={form.unmarkedAs}
+                onChange={(e) => setForm((f) => ({ ...f, unmarkedAs: e.target.value === "absent" ? "absent" : "present" }))}
+              >
+                <option value="present">Present — mark only absences, leave, lates (recommended)</option>
+                <option value="absent">Absent — everyone must be marked every day</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className={labelCls}>Shift starts</label>
@@ -92,7 +103,10 @@ export function AttendanceSettingsDialog({ settings }: { settings: AttendanceSet
             </div>
             <p className="m-0 text-[12px] text-ink2 leading-[1.5]">
               Checking in after {fmtShift(form.shiftStart)} + {form.graceMinutes} min counts as <b>Late</b>. Checking out after less than {form.halfDayHours} hours
-              counts as a <b>Half day</b>. The weekly off day is never counted as absent.
+              counts as a <b>Half day</b>. The weekly off day is never counted as absent.{" "}
+              {form.unmarkedAs === "present"
+                ? "Anyone not marked is treated as present — record only the exceptions."
+                : "A working day with nothing recorded counts as absent."}
             </p>
             {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
             <button

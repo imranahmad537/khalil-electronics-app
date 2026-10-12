@@ -6,6 +6,7 @@ import { PrintButton } from "@/components/print-button";
 import { AccessDenied } from "@/components/access-denied";
 import { AttendanceRegister } from "@/components/attendance-register";
 import { AttendanceSettingsDialog } from "@/components/attendance-settings-dialog";
+import { AttendanceSheet } from "@/components/attendance-sheet";
 import { getCurrentPermissions } from "@/lib/current-user";
 import { getDailyRegister, getMonthlyAttendance, type MonthlyRow } from "@/lib/data/attendance";
 import { STATUS_COLOR, STATUS_LABEL, STATUS_SHORT, WEEKDAYS, fmtShift, fmtTime, weekdayOf } from "@/lib/attendance";
@@ -122,7 +123,7 @@ export default async function AttendancePage({
           />
         </div>
 
-        <AttendanceRegister day={day} today={today} rows={data.rows} canMark={canMark} />
+        <AttendanceRegister day={day} today={today} rows={data.rows} canMark={canMark} unmarkedAs={data.settings.unmarkedAs} />
       </div>
     );
   }
@@ -130,13 +131,13 @@ export default async function AttendancePage({
   // ---------------- monthly sheet ----------------
   const data = await getMonthlyAttendance(month);
   const selected = sp.employee ? data.rows.find((r) => r.employee.id === sp.employee) : undefined;
-  const cols = `minmax(170px,1.6fr) repeat(${data.days.length}, 26px) repeat(6, 44px) 56px`;
 
   return (
     <div className="print-report flex flex-col gap-4">
       <div className="print-only text-[11px] text-ink3 border-b border-line pb-2">{SHOP_NAME} · Attendance sheet · {monthName(month)}</div>
       <PageHeader title="Attendance" hint={`Monthly sheet · ${monthName(month)} · ${data.rows.length} staff`}>
         {tabs}
+        {canMark && <AttendanceSettingsDialog settings={data.settings} />}
         <PrintButton />
       </PageHeader>
 
@@ -165,58 +166,13 @@ export default async function AttendancePage({
           ))}
         </div>
 
-        <div className="tblwrap">
-          <div className="tblinner" style={{ minWidth: 170 + data.days.length * 30 + 6 * 48 + 60 }}>
-            <div className="grid gap-[4px] items-end pb-2 border-b border-line text-[10px] font-bold text-ink3" style={{ gridTemplateColumns: cols }}>
-              <span className="uppercase tracking-[.08em]">Employee</span>
-              {data.days.map((d) => (
-                <span key={d} className="text-center leading-tight" style={{ color: d === data.today ? "var(--g700)" : undefined }}>
-                  {WEEKDAYS[weekdayOf(d)][0]}
-                  <br />
-                  {Number(d.slice(8))}
-                </span>
-              ))}
-              {["P", "L", "H", "LV", "A", "HO"].map((h) => (
-                <span key={h} className="text-center">
-                  {h}
-                </span>
-              ))}
-              <span className="text-right">%</span>
-            </div>
-            {data.rows.map((r) => (
-              <div key={r.employee.id} className="trow grid gap-[4px] items-center py-[7px] border-b border-line" style={{ gridTemplateColumns: cols }}>
-                <Link
-                  href={`/attendance?view=monthly&month=${month}&employee=${r.employee.id}`}
-                  className="min-w-0 text-ink"
-                  title="Open day-by-day record"
-                >
-                  <span className="block text-[12.5px] font-bold truncate">{r.employee.fullName}</span>
-                  <span className="block text-[10.5px] text-ink3">{ROLE_LABEL[r.employee.role]}</span>
-                </Link>
-                {r.days.map((d) => (
-                  <span
-                    key={d.day}
-                    title={`${d.day} · ${STATUS_LABEL[d.state]}${d.record?.note ? " · " + d.record.note : ""}`}
-                    className="h-[22px] rounded-[5px] flex items-center justify-center text-[9.5px] font-bold"
-                    style={{ background: STATUS_COLOR[d.state].bg, color: STATUS_COLOR[d.state].fg }}
-                  >
-                    {STATUS_SHORT[d.state]}
-                  </span>
-                ))}
-                {[r.summary.present, r.summary.late, r.summary.halfDay, r.summary.leave, r.summary.absent, r.summary.holiday].map((n, i) => (
-                  <span key={i} className="num text-center text-[12px] font-bold" style={{ color: i === 4 && n > 0 ? "var(--red)" : undefined }}>
-                    {n}
-                  </span>
-                ))}
-                <span className="num text-right text-[12.5px] font-extrabold">{r.summary.attendancePct === null ? "—" : `${r.summary.attendancePct}%`}</span>
-              </div>
-            ))}
-            {data.rows.length === 0 && <div className="p-7 text-center text-[13px] text-ink2">No active staff. Add staff in Employees.</div>}
-          </div>
-        </div>
+        <AttendanceSheet month={month} days={data.days} today={data.today} rows={data.rows} canMark={canMark} />
         <p className="m-0 text-[11.5px] text-ink3">
-          A past working day with nothing recorded counts as absent. Weekly off days and days before an employee joined don&apos;t count. Attendance % = (present
-          + late + ½ half days) ÷ working days. Click a name for the day-by-day record.
+          {data.settings.unmarkedAs === "present"
+            ? "Days nobody marked count as present (shown as a pale P). "
+            : "A past working day with nothing recorded counts as absent. "}
+          Weekly off days and days outside employment don&apos;t count. Attendance % = (present + late + ½ half days) ÷ working days.{" "}
+          {canMark ? "Tap any day to change it; " : ""}click a name for the day-by-day record.
         </p>
       </div>
     </div>
