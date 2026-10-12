@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 
@@ -42,7 +43,7 @@ export async function getRecoveryData(): Promise<RecoveryData> {
 
   const [officersRes, statusRes, receiptsRes, verificationsRes, assignedCountRes] = await Promise.all([
     supabase.from("profiles").select("id, full_name, zone").eq("role", "avo").eq("active", true).order("full_name"),
-    supabase.from("customer_month_status").select("*"),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("customer_id").range(a, b)),
     supabase.from("receipts").select("amount, collected_by").gte("collected_at", shopTodayStartISO()),
     supabase
       .from("verifications")
@@ -122,10 +123,14 @@ export interface AssignableCustomer {
 
 export async function getAssignableCustomers(): Promise<AssignableCustomer[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("customers")
     .select("id, full_name, acc_no, avo:profiles!customers_avo_id_fkey(full_name)")
-    .order("full_name");
+    .order("full_name")
+        .order("id")
+        .range(a, b)
+    );
   if (error) throw new Error(error.message);
 
   type Row = { id: string; full_name: string; acc_no: string; avo: { full_name: string } | null };

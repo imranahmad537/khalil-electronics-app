@@ -16,10 +16,11 @@ export function SendRemindersButton({
 
   function send() {
     startTransition(async () => {
-      const res = await queueMonthRemindersAction({ customers, monthLabel });
+      const res = await queueMonthRemindersAction({ customerIds: customers.map((c) => c.customerId), monthLabel });
       showToast(
         res.ok
-          ? `WhatsApp reminder queued to ${res.count} customer${res.count === 1 ? "" : "s"} for ${monthLabel}`
+          ? `WhatsApp reminder queued to ${res.count} customer${res.count === 1 ? "" : "s"} for ${monthLabel}` +
+              (res.skipped ? ` · ${res.skipped} already reminded today` : "")
           : res.error
       );
     });

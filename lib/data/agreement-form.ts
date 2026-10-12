@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import type { CustomerMonthStatus, CustomerStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
 
@@ -50,12 +51,16 @@ export async function getAgreementFormData(): Promise<AgreementFormData> {
   const supabase = await createClient();
 
   const [customersRes, statusRes, productsRes, officersRes, openInst] = await Promise.all([
-    supabase
+    fetchAll((a, b) =>
+      supabase
       .from("customers")
       .select("id, full_name, acc_no, cell, cnic, address, area, avo_id, guarantors(slot, full_name, cnic, cell)")
-      .order("full_name"),
-    supabase.from("customer_month_status").select("*"),
-    supabase.from("products").select("id, name, price, stock, categories(name)").order("name"),
+      .order("full_name")
+        .order("id")
+        .range(a, b)
+    ),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("customer_id").range(a, b)),
+    fetchAll((a, b) => supabase.from("products").select("id, name, price, stock, categories(name)").order("name").order("id").range(a, b)),
     supabase.from("profiles").select("id, full_name, zone").eq("role", "avo").eq("active", true).order("full_name"),
     fetchOpenInstallments(supabase),
   ]);

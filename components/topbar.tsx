@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Menu, Search, Clock, Mail } from "lucide-react";
 import { initials } from "@/lib/money";
@@ -23,6 +23,7 @@ export function Topbar({
   attendance: MyAttendanceToday;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isField = pathname.startsWith("/avo");
   const [query, setQuery] = useState("");
 
@@ -41,11 +42,14 @@ export function Topbar({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search customer, account…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && query.trim()) router.push(`/customers?q=${encodeURIComponent(query.trim())}`);
+          }}
+          placeholder="Search customer, account, cell… (Enter)"
           className="flex-1 min-w-0 border-0 bg-transparent text-[13.5px] text-ink outline-none"
         />
         <span className="num hide-md text-[10.5px] font-bold px-[7px] py-[3px] rounded-[7px] bg-white text-ink3 border border-line">
-          ⌘F
+          Enter
         </span>
       </div>
 

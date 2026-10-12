@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export interface ProductRow {
   id: string;
@@ -22,10 +23,14 @@ export interface ProductsData {
 
 export async function getProductsData(): Promise<ProductsData> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("products")
     .select("id, name, model, cost, price, stock, min_stock, categories(name), vendors(name)")
-    .order("name");
+    .order("name")
+        .order("id")
+        .range(a, b)
+    );
 
   if (error) throw new Error(error.message);
 

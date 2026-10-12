@@ -15,6 +15,7 @@ export interface Payslip {
   lateDays: number;
   unpaidLeave: number;
   notJoinedDays: number;
+  sandwichDays: number;
   deductionDays: number;
   deduction: number;
   adjustment: number;
@@ -36,9 +37,9 @@ export interface PayrollRow {
 
 export async function getPayRules(): Promise<PayRules> {
   const supabase = await createClient();
-  const { data } = await supabase.from("attendance_settings").select("pay_basis, lates_per_day, paid_leave").eq("id", 1).maybeSingle();
+  const { data } = await supabase.from("attendance_settings").select("pay_basis, lates_per_day, paid_leave, sandwich_rule").eq("id", 1).maybeSingle();
   if (!data) return DEFAULT_PAY_RULES;
-  return { payBasis: data.pay_basis, latesPerDay: data.lates_per_day, paidLeave: data.paid_leave };
+  return { payBasis: data.pay_basis, latesPerDay: data.lates_per_day, paidLeave: data.paid_leave, sandwichRule: data.sandwich_rule };
 }
 
 function toPayslip(p: {
@@ -53,6 +54,7 @@ function toPayslip(p: {
   late_days: number;
   unpaid_leave: number;
   not_joined_days: number;
+  sandwich_days: number;
   deduction_days: number;
   deduction: number;
   adjustment: number;
@@ -73,6 +75,7 @@ function toPayslip(p: {
     lateDays: Number(p.late_days),
     unpaidLeave: Number(p.unpaid_leave),
     notJoinedDays: Number(p.not_joined_days),
+    sandwichDays: Number(p.sandwich_days ?? 0),
     deductionDays: Number(p.deduction_days),
     deduction: Number(p.deduction),
     adjustment: Number(p.adjustment),
@@ -85,16 +88,15 @@ function toPayslip(p: {
 
 export async function getPayroll(monthKey: string) {
   const supabase = await createClient();
-  const [attendance, rules, salariesRes, slipsRes] = await Promise.all([
+  const [attendance, rules, slipsRes] = await Promise.all([
     getMonthlyAttendance(monthKey),
     getPayRules(),
-    supabase.from("employees").select("id, salary").eq("active", true),
     supabase.from("payslips").select("*").eq("month", `${monthKey}-01`),
   ]);
-  if (salariesRes.error) throw new Error(salariesRes.error.message);
   if (slipsRes.error) throw new Error(slipsRes.error.message);
 
-  const salaryById = new Map((salariesRes.data ?? []).map((e) => [e.id, Number(e.salary)]));
+  // includes anyone who left during this month, so their final salary can be paid
+  const salaryById = new Map(attendance.rows.map((r) => [r.employee.id, r.employee.salary ?? 0]));
   const slipById = new Map((slipsRes.data ?? []).map((p) => [p.employee_id, toPayslip(p)]));
 
   const rows: PayrollRow[] = attendance.rows.map((r) => {

@@ -20,7 +20,11 @@ export interface StaffMember {
   fullName: string;
   role: UserRole;
   joinedOn: string | null;
+  /** set when the employee was deactivated; days after it aren't counted or paid */
+  leftOn: string | null;
   hasLogin: boolean;
+  /** only returned to owner/manager (payroll); null for the accountant */
+  salary: number | null;
 }
 
 async function getSettings(supabase: Supabase): Promise<AttendanceSettings> {
@@ -34,10 +38,19 @@ async function getSettings(supabase: Supabase): Promise<AttendanceSettings> {
   };
 }
 
-async function getStaff(supabase: Supabase): Promise<StaffMember[]> {
-  const { data, error } = await supabase.rpc("attendance_staff");
+/** Current staff, plus anyone who left on or after `from` (so their last month still shows). */
+async function getStaff(supabase: Supabase, from: string): Promise<StaffMember[]> {
+  const { data, error } = await supabase.rpc("attendance_staff", { p_from: from });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((s) => ({ id: s.id, fullName: s.full_name, role: s.role, joinedOn: s.joined_on, hasLogin: s.has_login }));
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    fullName: s.full_name,
+    role: s.role,
+    joinedOn: s.joined_on,
+    leftOn: s.left_on,
+    hasLogin: s.has_login,
+    salary: s.salary === null ? null : Number(s.salary),
+  }));
 }
 
 function toRecord(r: {
@@ -81,7 +94,7 @@ export async function getDailyRegister(day: string) {
   const supabase = await createClient();
   const [settings, staff, recordsRes] = await Promise.all([
     getSettings(supabase),
-    getStaff(supabase),
+    getStaff(supabase, day),
     supabase.from("attendance").select(RECORD_COLS).eq("day", day),
   ]);
   if (recordsRes.error) throw new Error(recordsRes.error.message);
@@ -89,10 +102,10 @@ export async function getDailyRegister(day: string) {
   const today = shopTodayStr();
 
   const rows: RegisterRow[] = staff
-    .filter((s) => !s.joinedOn || s.joinedOn <= day)
+    .filter((s) => (!s.joinedOn || s.joinedOn <= day) && (!s.leftOn || s.leftOn >= day))
     .map((employee) => {
       const record = byEmployee.get(employee.id) ?? null;
-      return { employee, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, weeklyOff: settings.weeklyOff }) };
+      return { employee, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff }) };
     });
 
   return { day, today, settings, rows };
@@ -109,7 +122,7 @@ export async function getMonthlyAttendance(monthKey: string) {
   const days = daysOfMonth(monthKey);
   const [settings, staff, recordsRes] = await Promise.all([
     getSettings(supabase),
-    getStaff(supabase),
+    getStaff(supabase, days[0]),
     supabase.from("attendance").select(RECORD_COLS).gte("day", days[0]).lte("day", days[days.length - 1]),
   ]);
   if (recordsRes.error) throw new Error(recordsRes.error.message);
@@ -121,7 +134,7 @@ export async function getMonthlyAttendance(monthKey: string) {
   const rows: MonthlyRow[] = staff.map((employee) => {
     const perDay = days.map((day) => {
       const record = byKey.get(key(employee.id, day)) ?? null;
-      return { day, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, weeklyOff: settings.weeklyOff }) };
+      return { day, record, state: dayState(day, record ?? undefined, { today, joinedOn: employee.joinedOn, leftOn: employee.leftOn, weeklyOff: settings.weeklyOff }) };
     });
     return { employee, summary: summarize(perDay.map((d) => d.state)), days: perDay };
   });

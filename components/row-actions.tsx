@@ -32,7 +32,7 @@ export function RowActions({
 
   function remind() {
     startTransition(async () => {
-      const res = await queueReminderAction({ customerId, amount: dueNow, monthLabel });
+      const res = await queueReminderAction({ customerId, monthLabel });
       showToast(
         res.ok ? `WhatsApp reminder queued for ${customerName} · ${cell}` : res.error
       );
@@ -62,8 +62,9 @@ export function RowActions({
       )}
       <button
         onClick={remind}
-        title="Send WhatsApp reminder"
-        className="btng border border-line cursor-pointer rounded-full w-[34px] h-[34px] flex items-center justify-center bg-white text-g700"
+        disabled={dueNow <= 0}
+        title={dueNow > 0 ? "Send WhatsApp reminder" : "Nothing due — no reminder needed"}
+        className="btng border border-line cursor-pointer rounded-full w-[34px] h-[34px] flex items-center justify-center bg-white text-g700 disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <MessageCircle size={16} strokeWidth={2.4} />
       </button>

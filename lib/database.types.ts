@@ -231,6 +231,7 @@ export type Database = {
           profile_id: string | null;
           role: Database["public"]["Enums"]["user_role"];
           salary: number;
+          left_on: string | null;
         };
         Insert: {
           active?: boolean;
@@ -425,6 +426,7 @@ export type Database = {
           pay_basis: "fixed_30" | "working_days";
           lates_per_day: number;
           paid_leave: boolean;
+          sandwich_rule: boolean;
         };
         Insert: never;
         Update: {
@@ -435,6 +437,7 @@ export type Database = {
           pay_basis?: "fixed_30" | "working_days";
           lates_per_day?: number;
           paid_leave?: boolean;
+          sandwich_rule?: boolean;
         };
         Relationships: [];
       };
@@ -451,6 +454,7 @@ export type Database = {
           late_days: number;
           unpaid_leave: number;
           not_joined_days: number;
+          sandwich_days: number;
           deduction_days: number;
           deduction: number;
           adjustment: number;
@@ -971,9 +975,27 @@ export type Database = {
         Returns: Json;
       };
       attendance_staff: {
-        Args: Record<PropertyKey, never>;
-        Returns: { id: string; full_name: string; role: Database["public"]["Enums"]["user_role"]; joined_on: string | null; has_login: boolean }[];
+        Args: { p_from?: string | null };
+        Returns: {
+          id: string;
+          full_name: string;
+          role: Database["public"]["Enums"]["user_role"];
+          joined_on: string | null;
+          left_on: string | null;
+          has_login: boolean;
+          salary: number | null;
+        }[];
       };
+      assign_customers: { Args: { p_customers: string[]; p_avo: string }; Returns: number };
+      cancel_sale: {
+        Args: { p_agreement: string; p_refund: number; p_account: Database["public"]["Enums"]["money_account"]; p_reason: string; p_restock?: boolean };
+        Returns: undefined;
+      };
+      create_purchase: {
+        Args: { p_vendor: string; p_bill_no: string; p_bill_date: string; p_notes: string; p_items: Json };
+        Returns: string;
+      };
+      queue_reminders: { Args: { p_customers: string[]; p_month_label: string }; Returns: number };
       attendance_check_in: { Args: { p_lat?: number | null; p_lng?: number | null }; Returns: Json };
       attendance_check_out: { Args: { p_lat?: number | null; p_lng?: number | null }; Returns: Json };
       can_manage_login: { Args: { p_target: string }; Returns: boolean };

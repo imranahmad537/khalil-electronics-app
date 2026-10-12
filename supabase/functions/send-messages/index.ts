@@ -23,12 +23,25 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
-interface QueuedMessage {
+interface ClaimedMessage {
   id: string;
-  customer_id: string;
   channel: "whatsapp" | "sms";
   body: string;
-  customers: { cell: string; full_name: string } | null;
+  cell: string | null;
+}
+
+/**
+ * Pakistani mobiles are stored as 03XX-XXXXXXX; WhatsApp and SMS gateways
+ * need international format without "+": 923XXXXXXXXX. Returns null for
+ * anything that isn't a valid Pakistani mobile, so it fails visibly instead
+ * of going to a wrong number.
+ */
+export function toInternational(cell: string): string | null {
+  const d = cell.replace(/\D/g, "");
+  if (/^03\d{9}$/.test(d)) return "92" + d.slice(1);
+  if (/^923\d{9}$/.test(d)) return d;
+  if (/^00923\d{9}$/.test(d)) return d.slice(2);
+  return null;
 }
 
 async function sendWhatsApp(cell: string, body: string): Promise<{ ok: boolean; providerId?: string; error?: string }> {
@@ -36,13 +49,12 @@ async function sendWhatsApp(cell: string, body: string): Promise<{ ok: boolean; 
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
   if (!token || !phoneNumberId) return { ok: false, error: "WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID not configured" };
 
-  const to = cell.replace(/[^0-9]/g, "");
   const res = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       messaging_product: "whatsapp",
-      to,
+      to: cell,
       type: "text",
       text: { body },
     }),
@@ -74,13 +86,9 @@ async function sendSms(cell: string, body: string): Promise<{ ok: boolean; provi
 
 export default {
   fetch: withSupabase({ auth: ["secret"] }, async (_req, ctx) => {
-    const { data: queued, error } = await ctx.supabaseAdmin
-      .from("messages")
-      .select("id, customer_id, channel, body, customers(cell, full_name)")
-      .eq("status", "queued")
-      .order("created_at", { ascending: true })
-      .limit(100);
-
+    // claim_queued_messages (0010_edge_cases.sql) locks this batch so an
+    // overlapping run can't send the same message twice.
+    const { data: claimed, error } = await ctx.supabaseAdmin.rpc("claim_queued_messages", { p_limit: 100 });
     if (error) {
       return Response.json({ ok: false, error: error.message }, { status: 500 });
     }
@@ -88,30 +96,29 @@ export default {
     let sent = 0;
     let failed = 0;
 
-    for (const msg of (queued ?? []) as unknown as QueuedMessage[]) {
-      const cell = msg.customers?.cell;
-      if (!cell) {
-        await ctx.supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", msg.id);
-        failed++;
-        continue;
-      }
+    for (const msg of (claimed ?? []) as ClaimedMessage[]) {
+      const to = msg.cell ? toInternational(msg.cell) : null;
+      const result = !to
+        ? { ok: false, error: `Invalid or missing mobile number: ${msg.cell ?? "none"}` }
+        : msg.channel === "whatsapp"
+          ? await sendWhatsApp(to, msg.body)
+          : await sendSms(to, msg.body);
 
-      const result = msg.channel === "whatsapp" ? await sendWhatsApp(cell, msg.body) : await sendSms(cell, msg.body);
-
-      if (result.ok) {
-        await ctx.supabaseAdmin
-          .from("messages")
-          .update({ status: "sent", provider_id: result.providerId ?? null, sent_at: new Date().toISOString() })
-          .eq("id", msg.id);
-        sent++;
-      } else {
-        console.error(`send-messages: ${msg.channel} to ${cell} failed: ${result.error}`);
-        await ctx.supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", msg.id);
+      // sent, or back in the queue (retried up to 3 times), or failed — with the reason saved
+      await ctx.supabaseAdmin.rpc("finish_message", {
+        p_id: msg.id,
+        p_ok: result.ok,
+        p_provider_id: result.ok ? (result.providerId ?? null) : null,
+        p_error: result.ok ? null : (result.error ?? "unknown error"),
+      });
+      if (result.ok) sent++;
+      else {
+        console.error(`send-messages: ${msg.channel} to ${msg.cell} failed: ${result.error}`);
         failed++;
       }
     }
 
-    return Response.json({ ok: true, processed: (queued ?? []).length, sent, failed });
+    return Response.json({ ok: true, processed: (claimed ?? []).length, sent, failed });
   }),
 };
 

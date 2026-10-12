@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
@@ -59,7 +60,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient();
 
   const [statusRes, officersRes, openInst, receiptsRes] = await Promise.all([
-    supabase.from("customer_month_status").select("*").order("full_name"),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("full_name").order("customer_id").range(a, b)),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),
     fetchOpenInstallments(supabase),
     supabase

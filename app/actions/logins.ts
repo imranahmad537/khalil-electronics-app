@@ -124,7 +124,6 @@ export async function setLoginActiveAction(profileId: string, active: boolean): 
   // profiles.active is what RLS checks; the ban ends any open session.
   const { error } = await admin.from("profiles").update({ active }).eq("id", profileId);
   if (error) return { ok: false, error: friendlyDbError(error) };
-  await admin.from("employees").update({ active }).eq("profile_id", profileId);
   await admin.auth.admin.updateUserById(profileId, { ban_duration: active ? "none" : "876000h" });
 
   revalidatePath("/logins");

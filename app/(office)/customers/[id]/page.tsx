@@ -5,6 +5,8 @@ import { getCustomerLedger, type LedgerAgreement } from "@/lib/data/customers";
 import { money } from "@/lib/money";
 import { initials } from "@/lib/money";
 import { LedgerCollectButton } from "@/components/ledger-collect-button";
+import { BlacklistButton, CancelSaleButton, EditCustomerButton } from "@/components/customer-admin";
+import { getCurrentPermissions } from "@/lib/current-user";
 
 const INST_BADGE: Record<string, { bg: string; fg: string; label: string }> = {
   upcoming: { bg: "var(--soft)", fg: "var(--ink3)", label: "Upcoming" },
@@ -31,8 +33,9 @@ function fmtDate(d: string) {
 
 export default async function CustomerLedgerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ledger = await getCustomerLedger(id);
+  const [ledger, permissions] = await Promise.all([getCustomerLedger(id), getCurrentPermissions()]);
   if (!ledger) notFound();
+  const isManager = permissions.canManageEmployees; // owner / manager
 
   const { customer, guarantors, agreements, receipts } = ledger;
   const g1 = guarantors.find((g) => g.slot === 1);
@@ -59,6 +62,22 @@ export default async function CustomerLedgerPage({ params }: { params: Promise<{
           <p className="mt-1 mb-0 text-[12.5px] text-ink3">
             Acc {customer.accNo} · {customer.avoName}
           </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <EditCustomerButton
+            customerId={customer.id}
+            initial={{
+              fullName: customer.fullName,
+              fatherName: customer.fatherName ?? "",
+              cnic: customer.cnic ?? "",
+              cell: customer.cell,
+              cell2: customer.cell2 ?? "",
+              address: customer.address ?? "",
+              area: customer.area ?? "",
+              occupation: customer.occupation ?? "",
+            }}
+          />
+          {isManager && <BlacklistButton customerId={customer.id} name={customer.fullName} blacklisted={customer.blacklisted} />}
         </div>
       </div>
 
@@ -87,7 +106,7 @@ export default async function CustomerLedgerPage({ params }: { params: Promise<{
           </div>
         )}
         {agreements.map((a) => (
-          <AgreementCard key={a.id} agreement={a} customer={customer} />
+          <AgreementCard key={a.id} agreement={a} customer={customer} canCancel={isManager} />
         ))}
       </div>
 
@@ -166,9 +185,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function AgreementCard({
   agreement,
   customer,
+  canCancel,
 }: {
   agreement: LedgerAgreement;
-  customer: { fullName: string; accNo: string; avoName: string };
+  customer: { id: string; fullName: string; accNo: string; avoName: string };
+  canCancel: boolean;
 }) {
   const badge = AGREEMENT_BADGE[agreement.status] ?? AGREEMENT_BADGE.closed;
 
@@ -187,6 +208,9 @@ function AgreementCard({
         >
           {badge.label}
         </span>
+        {canCancel && (agreement.status === "open" || agreement.status === "pending_verification") && (
+          <CancelSaleButton customerId={customer.id} agreementId={agreement.id} agreementNo={agreement.agreementNo} received={agreement.received} />
+        )}
         {agreement.collect && (
           <LedgerCollectButton
             customerName={customer.fullName}

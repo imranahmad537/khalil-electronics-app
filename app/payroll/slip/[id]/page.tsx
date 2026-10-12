@@ -51,7 +51,8 @@ export default async function PayslipPage({ params }: { params: Promise<{ id: st
             <span>Half days: {slip.halfDays}</span>
             <span>Lates: {slip.lateCount}</span>
             <span>Unpaid leave: {slip.unpaidLeave}</span>
-            {slip.notJoinedDays > 0 && <span>Before joining: {slip.notJoinedDays}</span>}
+            {slip.notJoinedDays > 0 && <span>Not employed: {slip.notJoinedDays}</span>}
+            {slip.sandwichDays > 0 && <span>Sandwiched off days: {slip.sandwichDays}</span>}
           </div>
           <div className="text-[11.5px] text-ink3">
             Deducted days: {deductionBreakdown({ ...slip, netPay: slip.netPay })}

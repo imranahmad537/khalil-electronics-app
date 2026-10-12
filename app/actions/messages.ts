@@ -2,67 +2,31 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-errors";
-import { money } from "@/lib/money";
+
+// queue_reminders (0010_edge_cases.sql) takes the amount from the live
+// balance — never from the browser — skips customers with nothing due, sends
+// a customer at most one reminder per day, and lets an AVO remind only their
+// own customers.
 
 export async function queueReminderAction(input: {
   customerId: string;
-  amount: number;
   monthLabel: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
-
-  const [{ data: customer, error: custError }, { data: template, error: tplError }] = await Promise.all([
-    supabase.from("customers").select("full_name").eq("id", input.customerId).single(),
-    supabase.from("message_templates").select("body, channel").eq("key", "reminder").single(),
-  ]);
-
-  if (custError || !customer) return { ok: false, error: friendlyDbError(custError, "Customer not found") };
-  if (tplError || !template) return { ok: false, error: friendlyDbError(tplError, "Template not found") };
-
-  const body = template.body
-    .replaceAll("{{name}}", customer.full_name)
-    .replaceAll("{{amount}}", money(input.amount).replace("Rs ", ""))
-    .replaceAll("{{month}}", input.monthLabel);
-
-  const { error } = await supabase.from("messages").insert({
-    customer_id: input.customerId,
-    channel: template.channel,
-    template: "reminder",
-    body,
-    status: "queued" as const,
-  });
-
-  if (error) return { ok: false, error: friendlyDbError(error) };
+  const { data, error } = await supabase.rpc("queue_reminders", { p_customers: [input.customerId], p_month_label: input.monthLabel });
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not queue the reminder.") };
+  if (!data) return { ok: false, error: "Nothing due, or a reminder already went to this customer today." };
   return { ok: true };
 }
 
 export async function queueMonthRemindersAction(input: {
-  customers: { customerId: string; name: string; amount: number }[];
+  customerIds: string[];
   monthLabel: string;
-}): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
-  if (input.customers.length === 0) return { ok: true, count: 0 };
-
+}): Promise<{ ok: true; count: number; skipped: number } | { ok: false; error: string }> {
+  if (input.customerIds.length === 0) return { ok: true, count: 0, skipped: 0 };
   const supabase = await createClient();
-  const { data: template, error: tplError } = await supabase
-    .from("message_templates")
-    .select("body, channel")
-    .eq("key", "reminder")
-    .single();
-
-  if (tplError || !template) return { ok: false, error: friendlyDbError(tplError, "Template not found") };
-
-  const rows = input.customers.map((c) => ({
-    customer_id: c.customerId,
-    channel: template.channel,
-    template: "reminder",
-    body: template.body
-      .replaceAll("{{name}}", c.name)
-      .replaceAll("{{amount}}", money(c.amount).replace("Rs ", ""))
-      .replaceAll("{{month}}", input.monthLabel),
-    status: "queued" as const,
-  }));
-
-  const { error } = await supabase.from("messages").insert(rows);
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  return { ok: true, count: rows.length };
+  const { data, error } = await supabase.rpc("queue_reminders", { p_customers: input.customerIds, p_month_label: input.monthLabel });
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not queue reminders.") };
+  const count = Number(data ?? 0);
+  return { ok: true, count, skipped: input.customerIds.length - count };
 }

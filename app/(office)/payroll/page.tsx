@@ -134,6 +134,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     data.rules.payBasis === "fixed_30" ? "1 day = salary ÷ 30" : "1 day = salary ÷ working days",
     data.rules.latesPerDay ? `${data.rules.latesPerDay} lates = 1 day` : "lates not deducted",
     data.rules.paidLeave ? "leave paid" : "leave unpaid",
+    data.rules.sandwichRule ? "sandwich rule on" : "sandwich rule off",
   ].join(" · ");
 
   return (

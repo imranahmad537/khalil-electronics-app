@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopTodayStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
@@ -42,12 +43,12 @@ export async function getReceiptsData(): Promise<ReceiptsData> {
       .select("id, receipt_no, amount, mode, collected_at, customers(full_name, acc_no), profiles(full_name)")
       .gte("collected_at", shopTodayStartISO())
       .order("collected_at", { ascending: false }),
-    supabase.from("customer_month_status").select("*"),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("customer_id").range(a, b)),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),
     fetchOpenInstallments(supabase),
-    supabase.from("receipts").select("amount").eq("account", "cash_in_hand"),
-    supabase.from("expenses").select("amount").eq("account", "cash_in_hand"),
-    supabase.from("vendor_payments").select("amount").eq("account", "cash_in_hand"),
+    fetchAll((a, b) => supabase.from("receipts").select("amount").eq("account", "cash_in_hand").order("id").range(a, b)),
+    fetchAll((a, b) => supabase.from("expenses").select("amount").eq("account", "cash_in_hand").order("id").range(a, b)),
+    fetchAll((a, b) => supabase.from("vendor_payments").select("amount").eq("account", "cash_in_hand").order("id").range(a, b)),
   ]);
 
   if (receiptsRes.error) throw new Error(receiptsRes.error.message);

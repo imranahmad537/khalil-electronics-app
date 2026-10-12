@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopMonthRange, shopMonthStartStr } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 
@@ -24,12 +25,16 @@ export async function getInstallmentsReceivedReport(monthKey?: string) {
   const supabase = await createClient();
   const { startISO, endISO } = monthRange(monthKey);
 
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("receipts")
     .select("id, receipt_no, amount, account, collected_at, customers(full_name, acc_no), profiles(full_name)")
     .gte("collected_at", startISO)
     .lt("collected_at", endISO)
-    .order("collected_at", { ascending: false });
+    .order("collected_at", { ascending: false })
+        .order("id")
+        .range(a, b)
+    );
 
   if (error) throw new Error(error.message);
 
@@ -70,13 +75,17 @@ export interface ReceivableRow {
 
 export async function getInstallmentsReceivableReport() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("installments")
     .select(
       "agreement_id, due_amount, carry_in, paid, due_month, agreements!inner(id, agreement_no, status, customers(full_name, acc_no, guarantors(slot, full_name)))"
     )
     .eq("agreements.status", "open")
-    .neq("status", "paid");
+    .neq("status", "paid")
+        .order("id")
+        .range(a, b)
+    );
 
   if (error) throw new Error(error.message);
 
@@ -139,7 +148,7 @@ export interface RecoverySheetRow {
 export async function getDailyRecoverySheet() {
   const supabase = await createClient();
   const [statusRes, officersRes] = await Promise.all([
-    supabase.from("customer_month_status").select("*").gt("due_now", 0).order("full_name"),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").gt("due_now", 0).order("full_name").order("customer_id").range(a, b)),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),
   ]);
   if (statusRes.error) throw new Error(statusRes.error.message);
@@ -175,11 +184,15 @@ export interface DefaulterRow {
 
 export async function getDefaulterList() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("customer_month_status")
     .select("*")
     .eq("status", "default")
-    .order("due_now", { ascending: false });
+    .order("due_now", { ascending: false })
+        .order("customer_id")
+        .range(a, b)
+    );
   if (error) throw new Error(error.message);
 
   const rows: DefaulterRow[] = ((data ?? []) as CustomerMonthStatus[]).map((r) => ({
@@ -208,7 +221,7 @@ export interface LedgerIndexRow {
 
 export async function getCustomerLedgerIndex(): Promise<LedgerIndexRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("customers").select("id, full_name, acc_no, cell").order("full_name");
+  const { data, error } = await fetchAll((a, b) => supabase.from("customers").select("id, full_name, acc_no, cell").order("full_name").order("id").range(a, b));
   if (error) throw new Error(error.message);
   return (data ?? []).map((c) => ({ id: c.id, fullName: c.full_name, accNo: c.acc_no, cell: c.cell }));
 }
@@ -234,8 +247,8 @@ export async function getProfitLossReport(monthKey?: string): Promise<ProfitLoss
       .neq("status", "cancelled")
       .gte("opened_on", startDate)
       .lt("opened_on", endDate),
-    supabase.from("receipts").select("amount").gte("collected_at", startISO).lt("collected_at", endISO),
-    supabase.from("expenses").select("amount").gte("spent_on", startDate).lt("spent_on", endDate),
+    fetchAll((a, b) => supabase.from("receipts").select("amount").gte("collected_at", startISO).lt("collected_at", endISO).order("id").range(a, b)),
+    fetchAll((a, b) => supabase.from("expenses").select("amount").gte("spent_on", startDate).lt("spent_on", endDate).order("id").range(a, b)),
   ]);
 
   if (agreementsRes.error) throw new Error(agreementsRes.error.message);

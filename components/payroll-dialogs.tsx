@@ -282,9 +282,16 @@ export function PayRulesDialog({ rules }: { rules: PayRules }) {
                 <option value="unpaid">Unpaid — each leave day is deducted</option>
               </select>
             </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Sandwich rule</label>
+              <select className={inputCls} value={form.sandwichRule ? "on" : "off"} onChange={(e) => setForm((f) => ({ ...f, sandwichRule: e.target.value === "on" }))}>
+                <option value="on">On — an off day / holiday between two absences is deducted too</option>
+                <option value="off">Off — off days and holidays are never deducted</option>
+              </select>
+            </div>
             <p className="m-0 text-[12px] text-ink2 leading-[1.5]">
               Always deducted: each <b>absent</b> day, <b>½ day</b> for each half day, and days before the employee joined. Weekly off days and holidays are
-              never deducted. Salaries already paid keep the figures they were paid with.
+              deducted only under the sandwich rule (absent the working day before and after). Salaries already paid keep the figures they were paid with.
             </p>
             {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
             <button

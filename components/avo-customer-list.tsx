@@ -24,7 +24,7 @@ export function AvoCustomerList({ officerName, customers }: { officerName: strin
 
   function remind(c: AvoCustomerCard) {
     startTransition(async () => {
-      const res = await queueReminderAction({ customerId: c.customerId, amount: c.dueNow, monthLabel });
+      const res = await queueReminderAction({ customerId: c.customerId, monthLabel });
       showToast(res.ok ? `WhatsApp reminder queued for ${c.fullName}` : res.error);
     });
   }
@@ -82,7 +82,9 @@ export function AvoCustomerList({ officerName, customers }: { officerName: strin
                 </button>
                 <button
                   onClick={() => remind(c)}
-                  className="w-11 h-11 flex-none rounded-full border border-line bg-white text-g700 flex items-center justify-center"
+                  disabled={c.dueNow <= 0}
+                  title={c.dueNow > 0 ? "Send WhatsApp reminder" : "Nothing due"}
+                  className="w-11 h-11 flex-none rounded-full border border-line bg-white text-g700 flex items-center justify-center disabled:opacity-30"
                 >
                   <MessageCircle size={16} strokeWidth={2.4} />
                 </button>

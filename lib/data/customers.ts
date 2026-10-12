@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { shopMonthStartISO } from "@/lib/shop-time";
+import { fetchAll } from "@/lib/supabase/fetch-all";
+import { shopMonthStartISO, shopMonthStartStr } from "@/lib/shop-time";
 import type { CustomerMonthStatus, CustomerStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer, type AgreementSummary } from "@/lib/data/agreements";
 import type { CollectAgreement } from "@/components/collect-dialog";
@@ -40,14 +41,18 @@ export async function getCustomersData(): Promise<CustomersData> {
   const supabase = await createClient();
 
   const [customersRes, statusRes, officersRes, openInst, receiptsRes] = await Promise.all([
-    supabase
+    fetchAll((a, b) =>
+      supabase
       .from("customers")
       .select("id, acc_no, full_name, cell, area, avo_id, created_at, guarantors(slot, full_name, cell)")
-      .order("full_name"),
-    supabase.from("customer_month_status").select("*"),
+      .order("full_name")
+        .order("id")
+        .range(a, b)
+    ),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("customer_id").range(a, b)),
     supabase.from("profiles").select("id, full_name").eq("role", "avo").eq("active", true),
     fetchOpenInstallments(supabase),
-    supabase.from("receipts").select("amount").gte("collected_at", shopMonthStartISO()),
+    fetchAll((a, b) => supabase.from("receipts").select("amount").gte("collected_at", shopMonthStartISO()).order("id").range(a, b)),
   ]);
 
   if (customersRes.error) throw new Error(customersRes.error.message);
@@ -150,6 +155,8 @@ export interface LedgerAgreement {
   items: LedgerItem[];
   installments: LedgerInstallment[];
   collect: CollectAgreement | null;
+  /** everything received on this agreement (signing + collections) — caps a refund on cancellation */
+  received: number;
 }
 
 export interface LedgerReceipt {
@@ -208,7 +215,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
     supabase
       .from("agreements")
       .select(
-        "id, agreement_no, sale_type, plan_months, total_price, advance, monthly, opened_on, status, closed_on, agreement_items(qty, unit_price, serial_no, products(name)), installments(seq, due_month, due_amount, carry_in, paid, status)"
+        "id, agreement_no, sale_type, plan_months, total_price, advance, monthly, opened_on, status, closed_on, agreement_items(qty, unit_price, serial_no, products(name)), installments(seq, due_month, due_amount, carry_in, paid, status), receipts(amount)"
       )
       .eq("customer_id", customerId)
       .order("opened_on", { ascending: false }),
@@ -254,6 +261,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
     closed_on: string | null;
     agreement_items: { qty: number; unit_price: number; serial_no: string | null; products: { name: string } | null }[];
     installments: { seq: number; due_month: string; due_amount: number; carry_in: number; paid: number; status: string }[];
+    receipts: { amount: number }[];
   };
   type ReceiptRecord = {
     id: string;
@@ -279,6 +287,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
       advance: a.advance,
       monthly: a.monthly,
       openedOn: a.opened_on,
+      received: (a.receipts ?? []).reduce((t, r) => t + Number(r.amount), 0),
       status: a.status,
       closedOn: a.closed_on,
       items: a.agreement_items.map((it) => ({
@@ -302,7 +311,12 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
               id: a.id,
               label: `Agreement #${a.agreement_no}${a.plan_months ? " · " + a.plan_months + " mo" : ""}`,
               monthly: oldestUnpaid.due_amount,
-              due: oldestUnpaid.due_amount + oldestUnpaid.carry_in - oldestUnpaid.paid,
+              // arrears + this month (same as the dashboard's due_now); paying ahead → next installment
+              due: Math.max(
+                0,
+                installments.filter((i) => i.status !== "paid" && i.due_month <= shopMonthStartStr()).reduce((t, i) => t + i.due_amount + i.carry_in - i.paid, 0) ||
+                  oldestUnpaid.due_amount + oldestUnpaid.carry_in - oldestUnpaid.paid
+              ),
             }
           : null,
     };

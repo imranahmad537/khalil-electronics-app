@@ -15,6 +15,10 @@ export async function createProductAction(input: {
   minStock: number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!input.name.trim()) return { ok: false, error: "Name is required." };
+  if (!(input.price > 0)) return { ok: false, error: "Enter a sale price greater than zero." };
+  if (!(input.cost >= 0)) return { ok: false, error: "Cost can't be negative." };
+  if (!Number.isInteger(input.stock) || input.stock < 0) return { ok: false, error: "Opening stock must be a whole number, 0 or more." };
+  if (!Number.isInteger(input.minStock) || input.minStock < 0) return { ok: false, error: "Minimum stock must be a whole number, 0 or more." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({

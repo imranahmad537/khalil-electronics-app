@@ -31,7 +31,8 @@ export async function bulkAssignAvoAction(input: {
   if (!input.avoId) return { ok: false, error: "Choose an officer." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("customers").update({ avo_id: input.avoId }).in("id", input.customerIds);
+  // also moves their pending house visits, and only to an active AVO (assign_customers in 0010)
+  const { error } = await supabase.rpc("assign_customers", { p_customers: input.customerIds, p_avo: input.avoId });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath("/recovery");

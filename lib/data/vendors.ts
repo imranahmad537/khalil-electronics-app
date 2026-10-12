@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopMonthStartStr } from "@/lib/shop-time";
 
 export interface VendorRow {
@@ -24,8 +25,8 @@ export async function getVendorsData(): Promise<VendorsData> {
 
   const [vendorsRes, purchasesRes, paymentsRes] = await Promise.all([
     supabase.from("vendors").select("id, name, cell, opening_balance").order("name"),
-    supabase.from("purchases").select("vendor_id, bill_date, total"),
-    supabase.from("vendor_payments").select("vendor_id, amount, paid_on"),
+    fetchAll((a, b) => supabase.from("purchases").select("vendor_id, bill_date, total").order("id").range(a, b)),
+    fetchAll((a, b) => supabase.from("vendor_payments").select("vendor_id, amount, paid_on").order("id").range(a, b)),
   ]);
 
   if (vendorsRes.error) throw new Error(vendorsRes.error.message);

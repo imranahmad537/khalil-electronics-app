@@ -25,32 +25,18 @@ export async function createPurchaseAction(input: {
   const items = input.items.filter((i) => i.productId && i.qty > 0);
   if (items.length === 0) return { ok: false, error: "Add at least one item." };
 
+  if (items.some((i) => !Number.isInteger(i.qty) || !(i.unitCost >= 0))) return { ok: false, error: "Every item needs a whole quantity and a cost." };
+
+  // one transaction: the bill and all its items, or nothing (create_purchase in 0010)
   const supabase = await createClient();
-
-  const { data: purchase, error: purchaseError } = await supabase
-    .from("purchases")
-    .insert({
-      vendor_id: input.vendorId,
-      bill_no: input.billNo.trim() || null,
-      bill_date: input.billDate,
-      notes: input.notes.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (purchaseError || !purchase) return { ok: false, error: friendlyDbError(purchaseError, "Could not create purchase.") };
-
-  // on_purchase_item trigger bumps products.stock/cost and purchases.total per row inserted
-  const { error: itemsError } = await supabase.from("purchase_items").insert(
-    items.map((i) => ({
-      purchase_id: purchase.id,
-      product_id: i.productId,
-      qty: i.qty,
-      unit_cost: i.unitCost,
-    }))
-  );
-
-  if (itemsError) return { ok: false, error: friendlyDbError(itemsError) };
+  const { error } = await supabase.rpc("create_purchase", {
+    p_vendor: input.vendorId,
+    p_bill_no: input.billNo,
+    p_bill_date: input.billDate,
+    p_notes: input.notes,
+    p_items: items.map((i) => ({ product_id: i.productId, qty: i.qty, unit_cost: i.unitCost })),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error, "Could not save the purchase.") };
 
   revalidatePath("/vendors");
   revalidatePath("/products");

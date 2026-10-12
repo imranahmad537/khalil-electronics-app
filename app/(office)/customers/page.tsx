@@ -38,9 +38,10 @@ function countFor(rows: CustomerListRow[], tab: Tab) {
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; avo?: string }>;
+  searchParams: Promise<{ tab?: string; avo?: string; q?: string }>;
 }) {
-  const { tab: tabParam, avo: avoParam } = await searchParams;
+  const { tab: tabParam, avo: avoParam, q: qParam } = await searchParams;
+  const q = (qParam ?? "").trim().toLowerCase();
   const tab: Tab = (TABS.map((t) => t.key) as string[]).includes(tabParam ?? "") ? (tabParam as Tab) : "all";
   const avoFilter = avoParam ?? "all";
 
@@ -48,7 +49,12 @@ export default async function CustomersPage({
   const monthLabel = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
   const officers = Array.from(new Set(data.rows.map((r) => r.avoName))).filter((n) => n !== "Unassigned").sort();
 
-  const byAvo = avoFilter === "all" ? data.rows : data.rows.filter((r) => r.avoName === avoFilter);
+  const bySearch = q
+    ? data.rows.filter((r) =>
+        [r.fullName, r.accNo, r.cell, r.area ?? "", r.g1Name ?? "", r.g2Name ?? "", r.g1Cell ?? "", r.g2Cell ?? ""].join(" ").toLowerCase().includes(q)
+      )
+    : data.rows;
+  const byAvo = avoFilter === "all" ? bySearch : bySearch.filter((r) => r.avoName === avoFilter);
   const visibleRows = byAvo.filter((r) => matchesTab(r, tab));
   const shownDue = visibleRows.reduce((t, r) => t + r.dueNow, 0);
 
@@ -116,7 +122,12 @@ export default async function CustomersPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Customers" hint={`${visibleRows.length} of ${data.rows.length} accounts`}>
+      <PageHeader title="Customers" hint={q ? `${visibleRows.length} result${visibleRows.length === 1 ? "" : "s"} for “${qParam?.trim()}” · ${data.rows.length} accounts` : `${visibleRows.length} of ${data.rows.length} accounts`}>
+        {q && (
+          <Link href="/customers" className="rounded-full px-[14px] py-[9px] text-[12.5px] font-bold border border-line bg-white text-ink2">
+            Clear search
+          </Link>
+        )}
         <MonthSwitcher />
         <Link
           href="/agreements/new"

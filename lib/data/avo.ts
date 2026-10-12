@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopMonthStartISO } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
@@ -35,9 +36,9 @@ export async function getAvoData(): Promise<AvoData | null> {
   const [profileRes, statusRes, openInst, receiptsRes] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     // RLS (avo_read) already scopes this to the officer's own customers.
-    supabase.from("customer_month_status").select("*").order("full_name"),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("*").order("full_name").order("customer_id").range(a, b)),
     fetchOpenInstallments(supabase),
-    supabase.from("receipts").select("amount").eq("collected_by", user.id).gte("collected_at", shopMonthStartISO()),
+    fetchAll((a, b) => supabase.from("receipts").select("amount").eq("collected_by", user.id).gte("collected_at", shopMonthStartISO()).order("id").range(a, b)),
   ]);
 
   if (statusRes.error) throw new Error(statusRes.error.message);

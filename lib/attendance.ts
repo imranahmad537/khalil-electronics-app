@@ -3,7 +3,7 @@
 
 export type AttendanceStatus = "present" | "late" | "half_day" | "leave" | "absent" | "holiday";
 /** What a calendar day shows: a recorded status, or a derived one. */
-export type DayState = AttendanceStatus | "off" | "unmarked" | "upcoming" | "not_joined";
+export type DayState = AttendanceStatus | "off" | "unmarked" | "upcoming" | "not_joined" | "left";
 
 export const STATUS_LABEL: Record<DayState, string> = {
   present: "Present",
@@ -16,6 +16,7 @@ export const STATUS_LABEL: Record<DayState, string> = {
   unmarked: "Not marked",
   upcoming: "—",
   not_joined: "—",
+  left: "Left",
 };
 
 export const STATUS_SHORT: Record<DayState, string> = {
@@ -29,6 +30,7 @@ export const STATUS_SHORT: Record<DayState, string> = {
   unmarked: "?",
   upcoming: "",
   not_joined: "",
+  left: "—",
 };
 
 export const STATUS_COLOR: Record<DayState, { bg: string; fg: string }> = {
@@ -42,6 +44,7 @@ export const STATUS_COLOR: Record<DayState, { bg: string; fg: string }> = {
   unmarked: { bg: "var(--red50)", fg: "var(--red)" },
   upcoming: { bg: "transparent", fg: "var(--ink3)" },
   not_joined: { bg: "transparent", fg: "var(--ink3)" },
+  left: { bg: "transparent", fg: "var(--ink3)" },
 };
 
 /** Statuses the register lets the office choose. */
@@ -80,8 +83,9 @@ export function daysOfMonth(monthKey: string): string[] {
 export function dayState(
   day: string,
   record: AttendanceRecord | undefined,
-  opts: { today: string; joinedOn: string | null; weeklyOff: number }
+  opts: { today: string; joinedOn: string | null; leftOn?: string | null; weeklyOff: number }
 ): DayState {
+  if (opts.leftOn && day > opts.leftOn) return "left";
   if (record) return record.status;
   if (opts.joinedOn && day < opts.joinedOn) return "not_joined";
   if (day > opts.today) return "upcoming";

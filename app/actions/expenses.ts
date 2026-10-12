@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-errors";
 import { getCurrentPermissions } from "@/lib/current-user";
+import { shopTodayStr } from "@/lib/shop-time";
 
 export interface ExpenseInput {
   category: string;
@@ -19,6 +20,8 @@ export async function createExpenseAction(input: ExpenseInput): Promise<{ ok: tr
   if (!(await getCurrentPermissions()).canManageFinance) return FORBIDDEN;
   if (!input.category.trim()) return { ok: false, error: "Category is required." };
   if (!(input.amount > 0)) return { ok: false, error: "Enter an amount greater than zero." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.spentOn)) return { ok: false, error: "Choose the date of the expense." };
+  if (input.spentOn > shopTodayStr()) return { ok: false, error: "The expense date can't be in the future." };
 
   const supabase = await createClient();
   const {
@@ -46,6 +49,8 @@ export async function updateExpenseAction(
   if (!(await getCurrentPermissions()).canManageFinance) return FORBIDDEN;
   if (!input.category.trim()) return { ok: false, error: "Category is required." };
   if (!(input.amount > 0)) return { ok: false, error: "Enter an amount greater than zero." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.spentOn)) return { ok: false, error: "Choose the date of the expense." };
+  if (input.spentOn > shopTodayStr()) return { ok: false, error: "The expense date can't be in the future." };
 
   const supabase = await createClient();
   const { error } = await supabase

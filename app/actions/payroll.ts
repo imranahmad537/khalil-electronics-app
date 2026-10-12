@@ -6,6 +6,7 @@ import { friendlyDbError } from "@/lib/db-errors";
 import { getCurrentPermissions } from "@/lib/current-user";
 import { getPayroll } from "@/lib/data/payroll";
 import { isMoneyAccount, type MoneyAccount } from "@/lib/payment";
+import { shopTodayStr } from "@/lib/shop-time";
 
 type Result = { ok: true } | { ok: false; error: string };
 const FORBIDDEN = { ok: false as const, error: "Only the owner or manager can run payroll." };
@@ -31,6 +32,7 @@ export async function paySalaryAction(input: {
 }): Promise<{ ok: true; payslipId: string } | { ok: false; error: string }> {
   if (!(await getCurrentPermissions()).canManageEmployees) return FORBIDDEN;
   if (!MONTH.test(input.month)) return { ok: false, error: "Invalid month." };
+  if (input.month > shopTodayStr().slice(0, 7)) return { ok: false, error: "You can't pay a month that hasn't started yet." };
   if (!isMoneyAccount(input.account)) return { ok: false, error: "Choose the account the salary is paid from." };
   if (!Number.isFinite(input.adjustment)) return { ok: false, error: "Invalid adjustment." };
   if (input.adjustment !== 0 && !input.note.trim()) return { ok: false, error: "Add a note explaining the adjustment." };
@@ -53,6 +55,7 @@ export async function paySalaryAction(input: {
       late_days: f.lateDays,
       unpaid_leave: f.unpaidLeave,
       not_joined_days: f.notJoinedDays,
+      sandwich_days: f.sandwichDays,
       deduction_days: f.deductionDays,
       deduction: f.deduction,
     },
@@ -78,6 +81,7 @@ export async function updatePayRulesAction(input: {
   payBasis: "fixed_30" | "working_days";
   latesPerDay: number;
   paidLeave: boolean;
+  sandwichRule: boolean;
 }): Promise<Result> {
   if (!(await getCurrentPermissions()).canManageEmployees) return FORBIDDEN;
   if (input.payBasis !== "fixed_30" && input.payBasis !== "working_days") return { ok: false, error: "Choose how the daily rate is worked out." };
@@ -87,7 +91,7 @@ export async function updatePayRulesAction(input: {
   const supabase = await createClient();
   const { error } = await supabase
     .from("attendance_settings")
-    .update({ pay_basis: input.payBasis, lates_per_day: input.latesPerDay, paid_leave: input.paidLeave })
+    .update({ pay_basis: input.payBasis, lates_per_day: input.latesPerDay, paid_leave: input.paidLeave, sandwich_rule: !!input.sandwichRule })
     .eq("id", 1);
   if (error) return { ok: false, error: friendlyDbError(error, "Could not save the rules.") };
   refresh();

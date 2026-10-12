@@ -1,4 +1,6 @@
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { shopMonthStartStr } from "@/lib/shop-time";
 
 // Shared across the dashboard's Collect dialog and the Customers register's Plan
 // column: both need the same "which installment is still open on each agreement"
@@ -8,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface OpenInstallmentRow {
   agreement_id: string;
   seq: number;
+  due_month: string;
   due_amount: number;
   carry_in: number;
   paid: number;
@@ -30,18 +33,27 @@ export interface AgreementSummary {
   monthly: number;
   paidCount: number;
   totalCount: number;
-  /** the installment post_receipt() will apply the next payment to, if any remain */
+  /**
+   * monthly: the oldest open installment's amount.
+   * due: everything owed up to and including this month (arrears + current) —
+   * matches due_now on the dashboard. If nothing is due yet (paying ahead),
+   * the next upcoming installment.
+   */
   oldest: { monthly: number; due: number } | null;
 }
 
 export async function fetchOpenInstallments(supabase: SupabaseClient): Promise<OpenInstallmentRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll((a, b) =>
+      supabase
     .from("installments")
     .select(
-      "agreement_id, seq, due_amount, carry_in, paid, status, agreements!inner(id, customer_id, agreement_no, plan_months, total_price, monthly, status)"
+      "agreement_id, seq, due_month, due_amount, carry_in, paid, status, agreements!inner(id, customer_id, agreement_no, plan_months, total_price, monthly, status)"
     )
     .eq("agreements.status", "open")
-    .order("seq", { ascending: true });
+    .order("seq", { ascending: true })
+        .order("id")
+        .range(a, b)
+    );
 
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as OpenInstallmentRow[];
@@ -55,15 +67,17 @@ export function summarizeAgreementsByCustomer(rows: OpenInstallmentRow[]): Map<s
     byAgreement.set(r.agreement_id, list);
   }
 
+  const thisMonth = shopMonthStartStr();
+  const owed = (r: OpenInstallmentRow) => Number(r.due_amount) + Number(r.carry_in) - Number(r.paid);
   const byCustomer = new Map<string, AgreementSummary[]>();
   for (const instRows of byAgreement.values()) {
     const ag = instRows[0]?.agreements;
     if (!ag) continue;
 
     const paidCount = instRows.filter((r) => r.status === "paid").length;
-    const oldestUnpaid = instRows
-      .filter((r) => r.status !== "paid")
-      .sort((a, b) => a.seq - b.seq)[0];
+    const unpaid = instRows.filter((r) => r.status !== "paid").sort((a, b) => a.seq - b.seq);
+    const oldestUnpaid = unpaid[0];
+    const dueNow = unpaid.filter((r) => r.due_month <= thisMonth).reduce((t, r) => t + owed(r), 0);
 
     const summary: AgreementSummary = {
       id: ag.id,
@@ -76,7 +90,7 @@ export function summarizeAgreementsByCustomer(rows: OpenInstallmentRow[]): Map<s
       oldest: oldestUnpaid
         ? {
             monthly: oldestUnpaid.due_amount,
-            due: oldestUnpaid.due_amount + oldestUnpaid.carry_in - oldestUnpaid.paid,
+            due: Math.max(0, dueNow > 0 ? dueNow : owed(oldestUnpaid)),
           }
         : null,
     };
