@@ -535,6 +535,8 @@ export type Database = {
           full_name: string;
           id: string;
           role: Database["public"]["Enums"]["user_role"];
+          username: string | null;
+          is_super: boolean;
           zone: string | null;
         };
         Insert: {
@@ -544,6 +546,8 @@ export type Database = {
           full_name: string;
           id: string;
           role?: Database["public"]["Enums"]["user_role"];
+          username?: string | null;
+          is_super?: boolean;
           zone?: string | null;
         };
         Update: {
@@ -553,6 +557,8 @@ export type Database = {
           full_name?: string;
           id?: string;
           role?: Database["public"]["Enums"]["user_role"];
+          username?: string | null;
+          is_super?: boolean;
           zone?: string | null;
         };
         Relationships: [];
@@ -892,7 +898,9 @@ export type Database = {
         };
         Returns: Json;
       };
+      can_manage_login: { Args: { p_target: string }; Returns: boolean };
       is_office: { Args: Record<PropertyKey, never>; Returns: boolean };
+      is_super_user: { Args: Record<PropertyKey, never>; Returns: boolean };
       least_loaded_avo: { Args: Record<PropertyKey, never>; Returns: string | null };
       my_role: {
         Args: Record<PropertyKey, never>;

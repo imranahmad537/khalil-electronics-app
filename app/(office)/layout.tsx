@@ -4,13 +4,9 @@ import { AppShell } from "@/components/app-shell";
 import { SHOP_NAME, WINDOW_END } from "@/lib/constants";
 import { ROLE_LABEL } from "@/lib/roles";
 import { getPermissions } from "@/lib/permissions";
+import { shopTodayStartISO } from "@/lib/shop-time";
 import type { UserRole } from "@/lib/types";
 
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export default async function OfficeLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -23,13 +19,13 @@ export default async function OfficeLayout({ children }: { children: React.React
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, is_super")
     .eq("id", user.id)
     .single();
 
   const [{ count: customersCount }, { count: receiptsToday }, { count: behindCount }] = await Promise.all([
     supabase.from("customers").select("id", { count: "exact", head: true }),
-    supabase.from("receipts").select("id", { count: "exact", head: true }).gte("collected_at", startOfTodayISO()),
+    supabase.from("receipts").select("id", { count: "exact", head: true }).gte("collected_at", shopTodayStartISO()),
     supabase
       .from("customer_month_status")
       .select("customer_id", { count: "exact", head: true })
@@ -37,13 +33,13 @@ export default async function OfficeLayout({ children }: { children: React.React
   ]);
 
   const monthLabel = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  const permissions = getPermissions((profile?.role as UserRole | undefined) ?? null);
+  const permissions = getPermissions((profile?.role as UserRole | undefined) ?? null, profile?.is_super ?? false);
 
   return (
     <AppShell
       shopName={SHOP_NAME}
       userName={profile?.full_name ?? user.email ?? "User"}
-      userRole={roleLabel(profile?.role)}
+      userRole={permissions.isSuper ? "Developer" : roleLabel(profile?.role)}
       windowNote={`Collection window · 1–${WINDOW_END} ${monthLabel}`}
       badges={{
         customers: customersCount ?? 0,

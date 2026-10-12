@@ -10,15 +10,21 @@ const FINANCE_ROLES: UserRole[] = ["owner", "manager", "accountant"]; // finance
 
 export interface Permissions {
   role: UserRole | null;
+  /** the developer's hidden account (profiles.is_super) — owner powers plus control of owner accounts */
+  isSuper: boolean;
   canManageEmployees: boolean;
   canManageFinance: boolean;
+  /** create staff logins, reset passwords, turn logins on/off (0007_staff_logins.sql) */
+  canManageLogins: boolean;
 }
 
-export function getPermissions(role: UserRole | null | undefined): Permissions {
+export function getPermissions(role: UserRole | null | undefined, isSuper = false): Permissions {
   const r = role ?? null;
   return {
     role: r,
+    isSuper: isSuper && r === "owner",
     canManageEmployees: !!r && EMPLOYEES_ROLES.includes(r),
     canManageFinance: !!r && FINANCE_ROLES.includes(r),
+    canManageLogins: r === "owner",
   };
 }

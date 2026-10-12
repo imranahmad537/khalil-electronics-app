@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { SHOP_NAME } from "@/lib/constants";
+import { loginIdToEmail } from "@/lib/staff-login";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,10 +25,10 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: loginIdToEmail(email), password });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(/invalid/i.test(error.message) ? "Wrong username or password." : error.message);
       return;
     }
     router.replace("/dashboard");
@@ -53,9 +54,12 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-col gap-[5px]">
-          <label className="text-[11.5px] font-bold text-ink2">Email</label>
+          <label className="text-[11.5px] font-bold text-ink2">Username</label>
           <input
-            type="email"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}

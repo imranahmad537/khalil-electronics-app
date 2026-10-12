@@ -8,6 +8,6 @@ export async function getCurrentPermissions(): Promise<Permissions> {
   } = await supabase.auth.getUser();
   if (!user) return getPermissions(null);
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return getPermissions(profile?.role ?? null);
+  const { data: profile } = await supabase.from("profiles").select("role, is_super").eq("id", user.id).single();
+  return getPermissions(profile?.role ?? null, profile?.is_super ?? false);
 }
