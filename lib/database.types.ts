@@ -394,6 +394,78 @@ export type Database = {
           },
         ];
       };
+      attendance: {
+        Row: {
+          id: string;
+          employee_id: string;
+          day: string;
+          status: "present" | "late" | "half_day" | "leave" | "absent" | "holiday";
+          check_in: string | null;
+          check_out: string | null;
+          in_lat: number | null;
+          in_lng: number | null;
+          out_lat: number | null;
+          out_lng: number | null;
+          note: string | null;
+          source: "self" | "office";
+          marked_by: string | null;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      attendance_settings: {
+        Row: {
+          id: number;
+          shift_start: string;
+          grace_minutes: number;
+          half_day_hours: number;
+          weekly_off: number;
+          pay_basis: "fixed_30" | "working_days";
+          lates_per_day: number;
+          paid_leave: boolean;
+        };
+        Insert: never;
+        Update: {
+          shift_start?: string;
+          grace_minutes?: number;
+          half_day_hours?: number;
+          weekly_off?: number;
+          pay_basis?: "fixed_30" | "working_days";
+          lates_per_day?: number;
+          paid_leave?: boolean;
+        };
+        Relationships: [];
+      };
+      payslips: {
+        Row: {
+          id: string;
+          employee_id: string;
+          month: string;
+          base_salary: number;
+          per_day: number;
+          absent_days: number;
+          half_days: number;
+          late_count: number;
+          late_days: number;
+          unpaid_leave: number;
+          not_joined_days: number;
+          deduction_days: number;
+          deduction: number;
+          adjustment: number;
+          adjustment_note: string | null;
+          net_pay: number;
+          account: Database["public"]["Enums"]["money_account"];
+          paid_on: string;
+          expense_id: string | null;
+          paid_by: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       job_runs: {
         Row: { job: string; last_run_at: string };
         Insert: { job: string; last_run_at: string };
@@ -898,7 +970,29 @@ export type Database = {
         };
         Returns: Json;
       };
+      attendance_staff: {
+        Args: Record<PropertyKey, never>;
+        Returns: { id: string; full_name: string; role: Database["public"]["Enums"]["user_role"]; joined_on: string | null; has_login: boolean }[];
+      };
+      attendance_check_in: { Args: { p_lat?: number | null; p_lng?: number | null }; Returns: Json };
+      attendance_check_out: { Args: { p_lat?: number | null; p_lng?: number | null }; Returns: Json };
       can_manage_login: { Args: { p_target: string }; Returns: boolean };
+      mark_attendance: { Args: { p_employee: string; p_day: string; p_status: string | null; p_note?: string | null }; Returns: undefined };
+      mark_attendance_bulk: { Args: { p_day: string; p_status: string; p_only_unmarked?: boolean }; Returns: number };
+      my_employee_id: { Args: Record<PropertyKey, never>; Returns: string | null };
+      record_salary_payment: {
+        Args: {
+          p_employee: string;
+          p_month: string;
+          p_figures: Json;
+          p_adjustment: number;
+          p_note: string | null;
+          p_account: Database["public"]["Enums"]["money_account"];
+          p_paid_on?: string | null;
+        };
+        Returns: string;
+      };
+      undo_salary_payment: { Args: { p_payslip: string }; Returns: undefined };
       is_office: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_super_user: { Args: Record<PropertyKey, never>; Returns: boolean };
       least_loaded_avo: { Args: Record<PropertyKey, never>; Returns: string | null };

@@ -10,6 +10,8 @@ import {
   UserCheck,
   BarChart3,
   KeyRound,
+  CalendarCheck,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +21,7 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
   /** which Permissions flag must be true to show this item; omit if everyone (every office role) sees it */
-  requires?: "canManageEmployees" | "canManageFinance" | "canManageLogins";
+  requires?: "canManageEmployees" | "canManageFinance" | "canManageLogins" | "canViewAttendance";
 }
 
 export interface NavGroup {
@@ -45,6 +47,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "vendors", label: "Vendors & bills", href: "/vendors", icon: Truck, requires: "canManageFinance" },
       { key: "expenses", label: "Expenses", href: "/expenses", icon: Wallet, requires: "canManageFinance" },
       { key: "employees", label: "Employees", href: "/employees", icon: UserCheck, requires: "canManageEmployees" },
+      { key: "attendance", label: "Attendance", href: "/attendance", icon: CalendarCheck, requires: "canViewAttendance" },
+      { key: "payroll", label: "Payroll", href: "/payroll", icon: Banknote, requires: "canManageEmployees" },
       { key: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
       { key: "logins", label: "Users & logins", href: "/logins", icon: KeyRound, requires: "canManageLogins" },
     ],

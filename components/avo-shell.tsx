@@ -7,18 +7,23 @@ import { money } from "@/lib/money";
 import { Toaster } from "@/components/toaster";
 import { SyncManager } from "@/components/sync-manager";
 import { RegisterSW } from "@/components/register-sw";
+import { AttendanceWidget } from "@/components/attendance-widget";
+import { LogoutButton } from "@/components/logout-button";
+import type { MyAttendanceToday } from "@/lib/data/attendance";
 
 export function AvoShell({
   officerName,
   monthLabel,
   collected,
   outstanding,
+  attendance,
   children,
 }: {
   officerName: string;
   monthLabel: string;
   collected: number;
   outstanding: number;
+  attendance: MyAttendanceToday;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -35,6 +40,10 @@ export function AvoShell({
               <div className="text-[15px] font-extrabold truncate">{officerName}</div>
               <div className="text-[11.5px] text-white/70">{monthLabel}</div>
             </div>
+            <LogoutButton variant="field" />
+          </div>
+          <div className="flex">
+            <AttendanceWidget data={attendance} variant="field" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-[2px]">

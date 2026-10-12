@@ -16,6 +16,10 @@ export interface Permissions {
   canManageFinance: boolean;
   /** create staff logins, reset passwords, turn logins on/off (0007_staff_logins.sql) */
   canManageLogins: boolean;
+  /** see everyone's attendance — owner, manager, accountant (payroll) (0008_attendance.sql) */
+  canViewAttendance: boolean;
+  /** mark / correct the daily register and change shift settings — owner, manager */
+  canMarkAttendance: boolean;
 }
 
 export function getPermissions(role: UserRole | null | undefined, isSuper = false): Permissions {
@@ -26,5 +30,7 @@ export function getPermissions(role: UserRole | null | undefined, isSuper = fals
     canManageEmployees: !!r && EMPLOYEES_ROLES.includes(r),
     canManageFinance: !!r && FINANCE_ROLES.includes(r),
     canManageLogins: r === "owner",
+    canViewAttendance: !!r && FINANCE_ROLES.includes(r),
+    canMarkAttendance: !!r && EMPLOYEES_ROLES.includes(r),
   };
 }

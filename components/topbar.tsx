@@ -5,17 +5,22 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, Search, Clock, Mail } from "lucide-react";
 import { initials } from "@/lib/money";
+import { AttendanceWidget } from "@/components/attendance-widget";
+import { LogoutButton } from "@/components/logout-button";
+import type { MyAttendanceToday } from "@/lib/data/attendance";
 
 export function Topbar({
   onToggleSidebar,
   windowNote,
   userName,
   userRole,
+  attendance,
 }: {
   onToggleSidebar: () => void;
   windowNote: string;
   userName: string;
   userRole: string;
+  attendance: MyAttendanceToday;
 }) {
   const pathname = usePathname();
   const isField = pathname.startsWith("/avo");
@@ -50,6 +55,8 @@ export function Topbar({
       </div>
 
       <div className="flex-1 min-w-0" />
+
+      <AttendanceWidget data={attendance} variant="office" />
 
       <div className="flex-none flex gap-[5px] p-1 bg-soft rounded-full">
         <Link
@@ -90,6 +97,8 @@ export function Topbar({
           <span className="text-[11px] text-ink3">{userRole}</span>
         </div>
       </div>
+
+      <LogoutButton variant="office" />
     </div>
   );
 }

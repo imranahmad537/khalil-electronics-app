@@ -6,6 +6,7 @@ import { Topbar } from "@/components/topbar";
 import { Toaster } from "@/components/toaster";
 import { SyncManager } from "@/components/sync-manager";
 import type { Permissions } from "@/lib/permissions";
+import type { MyAttendanceToday } from "@/lib/data/attendance";
 
 export function AppShell({
   shopName,
@@ -14,6 +15,7 @@ export function AppShell({
   windowNote,
   badges,
   permissions,
+  attendance,
   children,
 }: {
   shopName: string;
@@ -22,6 +24,7 @@ export function AppShell({
   windowNote: string;
   badges: SidebarBadges;
   permissions: Permissions;
+  attendance: MyAttendanceToday;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -36,6 +39,7 @@ export function AppShell({
           windowNote={windowNote}
           userName={userName}
           userRole={userRole}
+          attendance={attendance}
         />
         <div className="app-content scroll flex-1 min-h-0 flex flex-col gap-4 pr-0.5">
           <SyncManager />
