@@ -31,8 +31,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isAuthRoute = pathname.startsWith("/login");
-  const isAvoRoute = pathname.startsWith("/avo");
+  // exact match — "/logins" (Users & logins page) also starts with "/login"
+  const isAuthRoute = pathname === "/login" || pathname.startsWith("/login/");
+  const isAvoRoute = pathname === "/avo" || pathname.startsWith("/avo/");
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
