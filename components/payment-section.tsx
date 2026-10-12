@@ -1,7 +1,7 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
-import { Receipt } from "lucide-react";
+import { CalendarRange, Receipt } from "lucide-react";
 import { PlanCard } from "@/components/plan-card";
 import { ScheduleTable } from "@/components/schedule-table";
 import { money } from "@/lib/money";
@@ -24,14 +24,39 @@ export function financedAmount(total: number, advance: number) {
   return Math.max(0, total - (advance || 0));
 }
 
+// Plan choice sits near the top of the form (right after the customer), so
+// the guarantor cards it reveals appear where the user is already working.
+export function PlanPicker({ total }: { total: number }) {
+  const { watch, setValue, formState } = useFormContext<AgreementFormValues>();
+  const plan = watch("plan");
+  const financed = financedAmount(total, watch("advance"));
+  const monthlyFor = (p: 10 | 12) => Math.round(financed / p) || 0;
+
+  return (
+    <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-3">
+      <div className="flex items-center gap-[9px]">
+        <span className="w-[30px] h-[30px] rounded-[9px] bg-g50 text-g700 flex items-center justify-center">
+          <CalendarRange size={16} strokeWidth={2.4} />
+        </span>
+        <h2 className="text-[15.5px] font-extrabold m-0">Plan</h2>
+        {!total && <span className="text-[11.5px] text-ink3 ml-auto">Monthly amount shows once products are added</span>}
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <PlanCard label="12 months" monthly={total ? monthlyFor(12) : null} note="Lower monthly amount" selected={plan === 12} onClick={() => setValue("plan", 12)} />
+        <PlanCard label="10 months" monthly={total ? monthlyFor(10) : null} note="Shorter term" selected={plan === 10} onClick={() => setValue("plan", 10)} />
+        <PlanCard label="Direct sale" monthly={null} note="Full payment today" selected={plan === 0} onClick={() => setValue("plan", 0)} />
+      </div>
+      {formState.errors.plan && <span className="text-[11px] font-semibold text-red">{formState.errors.plan.message}</span>}
+    </div>
+  );
+}
+
 export function PaymentSection({ total }: { total: number }) {
   const { control, watch, setValue, formState } = useFormContext<AgreementFormValues>();
   const plan = watch("plan");
   const advance = watch("advance");
   const errors = formState.errors;
   const financed = financedAmount(total, advance);
-
-  const monthlyFor = (p: 10 | 12) => Math.round(financed / p) || 0;
 
   return (
     <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-4">
@@ -41,13 +66,6 @@ export function PaymentSection({ total }: { total: number }) {
         </span>
         <h2 className="text-[15.5px] font-extrabold m-0">Payment</h2>
       </div>
-
-      <div className="flex gap-3 flex-wrap">
-        <PlanCard label="12 months" monthly={total ? monthlyFor(12) : null} note="Lower monthly amount" selected={plan === 12} onClick={() => setValue("plan", 12)} />
-        <PlanCard label="10 months" monthly={total ? monthlyFor(10) : null} note="Shorter term" selected={plan === 10} onClick={() => setValue("plan", 10)} />
-        <PlanCard label="Direct sale" monthly={null} note="Full payment today" selected={plan === 0} onClick={() => setValue("plan", 0)} />
-      </div>
-      {errors.plan && <span className="text-[11px] font-semibold text-red">{errors.plan.message}</span>}
 
       <div className="form-grid-2">
         {plan !== 0 ? (

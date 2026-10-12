@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomerPicker } from "@/components/customer-picker";
 import { GuarantorCard } from "@/components/guarantor-card";
 import { ProductLineTable } from "@/components/product-line-table";
-import { PaymentSection, financedAmount } from "@/components/payment-section";
+import { PaymentSection, PlanPicker, financedAmount } from "@/components/payment-section";
 import { AgreementSummary, type SummaryRow } from "@/components/agreement-summary";
 import { createNewAgreementAction } from "@/app/actions/agreements";
 import { agreementFormSchema, defaultAgreementValues, type AgreementFormValues } from "@/lib/agreement-schema";
@@ -83,9 +83,9 @@ export function AgreementForm({
     [values.guarantor1, values.guarantor2].every((g) => g.name.trim() && g.cnic && g.cell);
   const checklist = [
     { label: "Customer details", done: customerDone },
+    { label: "Payment plan", done: values.plan !== null },
     { label: "Two guarantors", done: guarantorsDone },
     { label: "At least one product", done: validItems.length > 0 && total > 0 },
-    { label: "Payment plan", done: values.plan !== null },
   ];
   const missingCount = checklist.filter((c) => !c.done).length;
 
@@ -159,6 +159,7 @@ export function AgreementForm({
           </div>
 
           <CustomerPicker customers={customers} officers={officers} areas={areas} />
+          <PlanPicker total={total} />
 
           {isInstallment && (
             <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
