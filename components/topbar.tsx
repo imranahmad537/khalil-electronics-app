@@ -102,7 +102,7 @@ export function Topbar({
         </div>
       </div>
 
-      <LogoutButton variant="office" />
+      <LogoutButton variant="office" attendance={attendance} />
     </div>
   );
 }

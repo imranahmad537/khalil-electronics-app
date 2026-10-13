@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SHOP_NAME } from "@/lib/constants";
 import { loginIdToEmail } from "@/lib/staff-login";
 import { BrandLogo } from "@/components/brand-logo";
+import { CHECKIN_DISMISS_PREFIX } from "@/components/check-in-prompt";
 
 const FEATURES = [
   { icon: ShieldCheck, title: "Verified sales", text: "Every installment sale is checked with a house visit before it opens." },
@@ -41,6 +42,12 @@ export default function LoginPage() {
     if (error) {
       setError(/invalid/i.test(error.message) ? "Wrong username or password." : error.message);
       return;
+    }
+    // a fresh login asks for check-in again, even if "Later" was pressed last time
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith(CHECKIN_DISMISS_PREFIX)) localStorage.removeItem(k);
+    } catch {
+      /* storage unavailable — nothing to clear */
     }
     router.replace("/dashboard");
     router.refresh();

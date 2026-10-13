@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { shopTodayStr } from "@/lib/shop-time";
 import {
+  weekdayOf,
   dayState,
   daysOfMonth,
   summarize,
@@ -73,14 +74,19 @@ export async function getMyAttendanceToday() {
   const supabase = await createClient();
   const { data: employeeId } = await supabase.rpc("my_employee_id");
   if (!employeeId) return { linked: false as const };
+  const today = shopTodayStr();
   const [settings, recordRes] = await Promise.all([
     getSettings(supabase),
-    supabase.from("attendance").select(RECORD_COLS).eq("employee_id", employeeId).eq("day", shopTodayStr()).maybeSingle(),
+    supabase.from("attendance").select(RECORD_COLS).eq("employee_id", employeeId).eq("day", today).maybeSingle(),
   ]);
   return {
     linked: true as const,
+    employeeId: employeeId as string,
+    today,
     record: recordRes.data ? toRecord(recordRes.data) : null,
     shiftStart: settings.shiftStart,
+    graceMinutes: settings.graceMinutes,
+    isOffDay: weekdayOf(today) === settings.weeklyOff,
   };
 }
 export type MyAttendanceToday = Awaited<ReturnType<typeof getMyAttendanceToday>>;

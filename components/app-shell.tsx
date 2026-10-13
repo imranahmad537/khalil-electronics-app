@@ -5,6 +5,7 @@ import { Sidebar, type SidebarBadges } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { Toaster } from "@/components/toaster";
 import { SyncManager } from "@/components/sync-manager";
+import { CheckInPrompt } from "@/components/check-in-prompt";
 import type { Permissions } from "@/lib/permissions";
 import type { MyAttendanceToday } from "@/lib/data/attendance";
 
@@ -46,6 +47,7 @@ export function AppShell({
           {children}
         </div>
       </div>
+      <CheckInPrompt data={attendance} variant="office" />
       <Toaster />
     </div>
   );

@@ -8,6 +8,7 @@ import { Toaster } from "@/components/toaster";
 import { SyncManager } from "@/components/sync-manager";
 import { RegisterSW } from "@/components/register-sw";
 import { AttendanceWidget } from "@/components/attendance-widget";
+import { CheckInPrompt } from "@/components/check-in-prompt";
 import { LogoutButton } from "@/components/logout-button";
 import type { MyAttendanceToday } from "@/lib/data/attendance";
 
@@ -40,7 +41,7 @@ export function AvoShell({
               <div className="text-[15px] font-extrabold truncate">{officerName}</div>
               <div className="text-[11.5px] text-white/70">{monthLabel}</div>
             </div>
-            <LogoutButton variant="field" />
+            <LogoutButton variant="field" attendance={attendance} />
           </div>
           <div className="flex">
             <AttendanceWidget data={attendance} variant="field" />
@@ -85,6 +86,7 @@ export function AvoShell({
         <SyncManager />
         {children}
       </div>
+      <CheckInPrompt data={attendance} variant="field" />
       <Toaster />
       <RegisterSW />
     </div>
