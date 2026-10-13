@@ -1,4 +1,4 @@
-import { CheckCircle, UserCheck, Users, ShieldAlert } from "lucide-react";
+import { CheckCircle, UserCheck, Users, ShieldAlert, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatTile } from "@/components/stat-tile";
 import { DataTable, type DataRow } from "@/components/data-table";
@@ -55,6 +55,9 @@ export default async function RecoveryPage() {
     ],
   }));
 
+  const orphaned = assignable.filter((c) => c.avoId && !c.avoActive).length;
+  const unassigned = assignable.filter((c) => !c.avoId).length;
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="AVO & recovery" hint={`${data.officers.length} officers · ${data.assignedAccountsCount} accounts`}>
@@ -71,6 +74,26 @@ export default async function RecoveryPage() {
           }
         />
       </PageHeader>
+
+      {(orphaned > 0 || unassigned > 0) && (
+        <div className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl bg-amber50 text-[12.5px] font-semibold" style={{ color: "#8a5a10" }}>
+          <AlertTriangle size={16} strokeWidth={2.4} />
+          <span className="flex-1 min-w-[220px]">
+            {[
+              orphaned > 0 ? `${orphaned} customer${orphaned === 1 ? "" : "s"} belong to a deactivated officer` : "",
+              unassigned > 0 ? `${unassigned} have no officer` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}{" "}
+            — nobody is visiting them for collection.
+          </span>
+          <AssignDialog
+            customers={assignable}
+            officers={officerOptions}
+            trigger={<button className="rounded-full px-[14px] py-[7px] text-[12px] font-bold border border-line bg-white text-ink cursor-pointer">Assign them</button>}
+          />
+        </div>
+      )}
 
       <div className="kpis">
         <StatTile

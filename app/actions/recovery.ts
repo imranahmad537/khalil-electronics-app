@@ -23,20 +23,34 @@ export async function rejectVerificationAction(
   return { ok: true };
 }
 
+/**
+ * Assign customers to a field officer. A customer has exactly one officer, so
+ * assigning someone who belongs to another active officer is a transfer: it
+ * needs `transfer: true` (the dialog asks first) and is recorded in the
+ * assignment history (assign_customers, 0013_customer_assignment.sql).
+ */
 export async function bulkAssignAvoAction(input: {
   customerIds: string[];
   avoId: string;
-}): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  transfer: boolean;
+  reason: string;
+}): Promise<{ ok: true; assigned: number; transferred: number; unchanged: number } | { ok: false; error: string }> {
   if (input.customerIds.length === 0) return { ok: false, error: "Select at least one customer." };
   if (!input.avoId) return { ok: false, error: "Choose an officer." };
 
   const supabase = await createClient();
-  // also moves their pending house visits, and only to an active AVO (assign_customers in 0010)
-  const { error } = await supabase.rpc("assign_customers", { p_customers: input.customerIds, p_avo: input.avoId });
+  const { data, error } = await supabase.rpc("assign_customers", {
+    p_customers: input.customerIds,
+    p_avo: input.avoId,
+    p_transfer: input.transfer,
+    p_reason: input.reason.trim() || null,
+  });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  const r = data as { assigned: number; transferred: number; unchanged: number };
 
   revalidatePath("/recovery");
   revalidatePath("/customers");
   revalidatePath("/dashboard");
-  return { ok: true, count: input.customerIds.length };
+  revalidatePath("/avo");
+  return { ok: true, assigned: r.assigned, transferred: r.transferred, unchanged: r.unchanged };
 }

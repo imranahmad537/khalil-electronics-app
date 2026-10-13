@@ -118,7 +118,11 @@ export interface AssignableCustomer {
   id: string;
   fullName: string;
   accNo: string;
+  area: string | null;
+  avoId: string | null;
   avoName: string;
+  /** false when the customer's officer has been deactivated — nobody is collecting */
+  avoActive: boolean;
 }
 
 export async function getAssignableCustomers(): Promise<AssignableCustomer[]> {
@@ -126,18 +130,21 @@ export async function getAssignableCustomers(): Promise<AssignableCustomer[]> {
   const { data, error } = await fetchAll((a, b) =>
       supabase
     .from("customers")
-    .select("id, full_name, acc_no, avo:profiles!customers_avo_id_fkey(full_name)")
+    .select("id, full_name, acc_no, area, avo_id, avo:profiles!customers_avo_id_fkey(full_name, active)")
     .order("full_name")
         .order("id")
         .range(a, b)
     );
   if (error) throw new Error(error.message);
 
-  type Row = { id: string; full_name: string; acc_no: string; avo: { full_name: string } | null };
+  type Row = { id: string; full_name: string; acc_no: string; area: string | null; avo_id: string | null; avo: { full_name: string; active: boolean } | null };
   return ((data ?? []) as unknown as Row[]).map((c) => ({
     id: c.id,
     fullName: c.full_name,
     accNo: c.acc_no,
+    area: c.area,
+    avoId: c.avo_id,
     avoName: c.avo?.full_name ?? "Unassigned",
+    avoActive: !!c.avo?.active,
   }));
 }

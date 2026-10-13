@@ -988,7 +988,10 @@ export type Database = {
           salary: number | null;
         }[];
       };
-      assign_customers: { Args: { p_customers: string[]; p_avo: string }; Returns: number };
+      assign_customers: {
+        Args: { p_customers: string[]; p_avo: string; p_transfer?: boolean; p_reason?: string | null };
+        Returns: Json;
+      };
       cancel_sale: {
         Args: { p_agreement: string; p_refund: number; p_account: Database["public"]["Enums"]["money_account"]; p_reason: string; p_restock?: boolean };
         Returns: undefined;
