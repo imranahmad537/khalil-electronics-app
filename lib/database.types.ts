@@ -472,6 +472,20 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      customer_assignments: {
+        Row: {
+          id: string;
+          customer_id: string;
+          avo_id: string;
+          assigned_at: string;
+          unassigned_at: string | null;
+          assigned_by: string | null;
+          reason: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       job_runs: {
         Row: { job: string; last_run_at: string };
         Insert: { job: string; last_run_at: string };

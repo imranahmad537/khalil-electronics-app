@@ -148,3 +148,79 @@ export async function getAssignableCustomers(): Promise<AssignableCustomer[]> {
     avoActive: !!c.avo?.active,
   }));
 }
+
+export interface OfficerCustomerRow {
+  id: string;
+  fullName: string;
+  accNo: string;
+  cell: string;
+  area: string | null;
+  /** null when the customer has no open plan */
+  status: CustomerMonthStatus["status"] | null;
+  dueNow: number;
+  remaining: number;
+  assignedSince: string | null;
+  officerName: string;
+  officerActive: boolean;
+}
+
+/**
+ * Customers of one officer — or, with "none", customers who have no officer
+ * or whose officer was deactivated (nobody is collecting from them).
+ */
+export async function getOfficerCustomers(officerId: string): Promise<OfficerCustomerRow[]> {
+  const supabase = await createClient();
+  const unassignedView = officerId === "none";
+
+  const customersQuery = (a: number, b: number) => {
+    let q = supabase
+      .from("customers")
+      .select("id, full_name, acc_no, cell, area, avo_id, avo:profiles!customers_avo_id_fkey(full_name, active)")
+      .order("full_name")
+      .order("id");
+    if (!unassignedView) q = q.eq("avo_id", officerId);
+    return q.range(a, b);
+  };
+
+  const [customersRes, statusRes, sinceRes] = await Promise.all([
+    fetchAll(customersQuery),
+    fetchAll((a, b) => supabase.from("customer_month_status").select("customer_id, status, due_now, remaining").order("customer_id").range(a, b)),
+    fetchAll((a, b) => supabase.from("customer_assignments").select("customer_id, assigned_at").is("unassigned_at", null).order("id").range(a, b)),
+  ]);
+  if (customersRes.error) throw new Error(customersRes.error.message);
+  if (statusRes.error) throw new Error(statusRes.error.message);
+
+  type Row = {
+    id: string;
+    full_name: string;
+    acc_no: string;
+    cell: string;
+    area: string | null;
+    avo_id: string | null;
+    avo: { full_name: string; active: boolean } | null;
+  };
+  type StatusRow = { customer_id: string; status: CustomerMonthStatus["status"]; due_now: number | null; remaining: number | null };
+
+  const statusById = new Map((statusRes.data as StatusRow[]).map((s) => [s.customer_id, s]));
+  // history is optional (older databases without 0013 just show no date)
+  const sinceById = new Map(((sinceRes.data ?? []) as { customer_id: string; assigned_at: string }[]).map((s) => [s.customer_id, s.assigned_at]));
+
+  return (customersRes.data as unknown as Row[])
+    .filter((c) => !unassignedView || !c.avo_id || !c.avo?.active)
+    .map((c) => {
+      const s = statusById.get(c.id);
+      return {
+        id: c.id,
+        fullName: c.full_name,
+        accNo: c.acc_no,
+        cell: c.cell,
+        area: c.area,
+        status: s?.status ?? null,
+        dueNow: Math.max(0, s?.due_now ?? 0),
+        remaining: Math.max(0, s?.remaining ?? 0),
+        assignedSince: c.avo_id ? (sinceById.get(c.id) ?? null) : null,
+        officerName: c.avo?.full_name ?? "Unassigned",
+        officerActive: !!c.avo?.active,
+      };
+    });
+}
