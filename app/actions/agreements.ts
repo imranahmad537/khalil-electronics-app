@@ -7,6 +7,7 @@ import { friendlyDbError } from "@/lib/db-errors";
 import { isMoneyAccount, isPayMode, type MoneyAccount, type PayMode } from "@/lib/payment";
 import { cellError, cnicError } from "@/lib/validation";
 import { MAX_GUARANTORS } from "@/lib/guarantors";
+import { isPlanChoice, type PlanChoice } from "@/lib/plans";
 
 export interface AgreementItemInput {
   productId: string;
@@ -47,7 +48,8 @@ export interface CreateAgreementInput {
   noGuarantor: boolean;
   noGuarantorReason: string;
   items: AgreementItemInput[];
-  plan: 12 | 10 | 0;
+  /** installment months (lib/plans.ts) or 0 for a direct sale */
+  plan: PlanChoice;
   advance: number;
   paymentMode: PayMode;
   paymentAccount: MoneyAccount;
@@ -74,7 +76,7 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
   if (!UUID.test(input.clientRef)) return { ok: false, error: "Refresh the page and try again." };
   const items = input.items.filter((i) => i.productId && i.qty > 0);
   if (items.length === 0) return { ok: false, error: "Add at least one product." };
-  if (input.plan !== 12 && input.plan !== 10 && input.plan !== 0) {
+  if (!isPlanChoice(input.plan)) {
     return { ok: false, error: "Choose a payment plan." };
   }
   if (!isPayMode(input.paymentMode) || !isMoneyAccount(input.paymentAccount)) {

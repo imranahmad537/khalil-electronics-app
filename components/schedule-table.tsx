@@ -12,7 +12,7 @@ function monthLabel(offsetFromNext: number) {
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-export function ScheduleTable({ total, plan }: { total: number; plan: 10 | 12 }) {
+export function ScheduleTable({ total, plan }: { total: number; plan: number }) {
   const [open, setOpen] = useState(false);
   const monthly = Math.round(total / plan) || 0;
 

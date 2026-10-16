@@ -7,6 +7,7 @@ import { ScheduleTable } from "@/components/schedule-table";
 import { money } from "@/lib/money";
 import { MONEY_ACCOUNTS, PAY_MODES, defaultAccountFor } from "@/lib/payment";
 import type { AgreementFormValues } from "@/lib/agreement-schema";
+import { PLAN_OPTIONS, planNote } from "@/lib/plans";
 
 const inputCls = "px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-ink outline-none";
 const labelCls = "text-[11.5px] font-bold text-ink2";
@@ -30,7 +31,7 @@ export function PlanPicker({ total }: { total: number }) {
   const { watch, setValue, formState } = useFormContext<AgreementFormValues>();
   const plan = watch("plan");
   const financed = financedAmount(total, watch("advance"));
-  const monthlyFor = (p: 10 | 12) => Math.round(financed / p) || 0;
+  const monthlyFor = (p: number) => Math.round(financed / p) || 0;
 
   return (
     <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-3">
@@ -42,8 +43,16 @@ export function PlanPicker({ total }: { total: number }) {
         {!total && <span className="text-[11.5px] text-ink3 ml-auto">Monthly amount shows once products are added</span>}
       </div>
       <div className="flex gap-3 flex-wrap">
-        <PlanCard label="12 months" monthly={total ? monthlyFor(12) : null} note="Lower monthly amount" selected={plan === 12} onClick={() => setValue("plan", 12)} />
-        <PlanCard label="10 months" monthly={total ? monthlyFor(10) : null} note="Shorter term" selected={plan === 10} onClick={() => setValue("plan", 10)} />
+        {PLAN_OPTIONS.map((m) => (
+          <PlanCard
+            key={m}
+            label={`${m} months`}
+            monthly={total ? monthlyFor(m) : null}
+            note={planNote(m)}
+            selected={plan === m}
+            onClick={() => setValue("plan", m)}
+          />
+        ))}
         <PlanCard label="Direct sale" monthly={null} note="Full payment today" selected={plan === 0} onClick={() => setValue("plan", 0)} />
       </div>
       {formState.errors.plan && <span className="text-[11px] font-semibold text-red">{formState.errors.plan.message}</span>}

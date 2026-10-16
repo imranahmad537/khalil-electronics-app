@@ -1,7 +1,7 @@
 # Handoff: Khalil Electronics installment & recovery system
 
 ## Overview
-This is an office and field system for an electronics shop that sells mobiles, fridges, ACs, LEDs, bikes and batteries. Sales are either direct or on 10 or 12 month installment plans. The system covers:
+This is an office and field system for an electronics shop that sells mobiles, fridges, ACs, LEDs, bikes and batteries. Sales are either direct or on 6, 8, 10 or 12 month installment plans (set in lib/plans.ts). The system covers:
 
 - customers and their guarantors (1–4, or none with a recorded reason)
 - AVO (Account Verification Officer) house verification

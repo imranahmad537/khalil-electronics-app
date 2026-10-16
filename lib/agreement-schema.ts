@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { CELL_PATTERN, CNIC_PATTERN, cellError } from "@/lib/validation";
 import { MAX_GUARANTORS } from "@/lib/guarantors";
+import { isPlanChoice, type PlanChoice } from "@/lib/plans";
 
 // Formats live in lib/validation.ts so every form validates the same way.
 export { CNIC_PATTERN, CELL_PATTERN, maskCnic, maskCell } from "@/lib/validation";
@@ -46,7 +47,8 @@ export const agreementFormSchema = z
 
     items: z.array(itemSchema),
 
-    plan: z.union([z.literal(12), z.literal(10), z.literal(0)]).nullable(),
+    /** months of an installment plan (see lib/plans.ts), 0 for a direct sale, null until chosen */
+    plan: z.custom<PlanChoice | null>((v) => v === null || isPlanChoice(v), "Choose a plan"),
     advance: z.number().min(0, "Can't be negative"),
     paymentMode: z.enum(["cash", "bank", "jazzcash", "easypaisa"]),
     paymentAccount: z.enum(["cash_in_hand", "meezan_bank", "jazzcash"]),
@@ -72,7 +74,7 @@ export const agreementFormSchema = z
       ctx.addIssue({ code: "custom", path: ["plan"], message: "Choose a plan" });
     }
 
-    const isInstallment = data.plan === 12 || data.plan === 10;
+    const isInstallment = !!data.plan;
     if (isInstallment) {
       const total = validItems.reduce((t, i) => t + i.qty * i.unitPrice, 0);
       if (total > 0 && data.advance >= total) {

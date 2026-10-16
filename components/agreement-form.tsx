@@ -54,7 +54,7 @@ export function AgreementForm({
 
   const validItems = values.items.filter((i) => i.productId && i.qty > 0);
   const total = validItems.reduce((t, i) => t + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
-  const isInstallment = values.plan === 12 || values.plan === 10;
+  const isInstallment = !!values.plan;
   const isDirect = values.plan === 0;
   const financed = financedAmount(total, values.advance);
   const monthly = isInstallment ? Math.round(financed / (values.plan as number)) || 0 : 0;
@@ -122,7 +122,7 @@ export function AgreementForm({
             noGuarantor: v.noGuarantor,
             noGuarantorReason: v.noGuarantorReason,
             items: v.items,
-            plan: v.plan as 12 | 10 | 0,
+            plan: v.plan ?? 0,
             advance: v.advance,
             paymentMode: v.paymentMode,
             paymentAccount: v.paymentAccount,
