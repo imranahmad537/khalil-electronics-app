@@ -138,12 +138,13 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
           <colgroup>
             <col style={{ width: "3%" }} />
             <col style={{ width: "6%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "9%" }} />
             <col style={{ width: "15%" }} />
             <col style={{ width: "9%" }} />
-            <col style={{ width: "23%" }} />
             <col style={{ width: "5%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "8%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "7%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "9%" }} />
@@ -154,7 +155,8 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
               <th>Acc no</th>
               <th>Customer</th>
               <th>Cell</th>
-              <th>Guarantors (name · cell)</th>
+              <th>Guarantor</th>
+              <th>G. contact</th>
               <th>Agr.</th>
               <th>Plan</th>
               <th className="r">Inst. price</th>
@@ -184,7 +186,10 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
                           {g.cell}
                         </td>
                         <td rowSpan={span}>
-                          <Guarantors group={g} />
+                          <GuarantorNames group={g} />
+                        </td>
+                        <td rowSpan={span} className="num">
+                          <GuarantorContacts group={g} />
                         </td>
                       </>
                     )}
@@ -218,7 +223,7 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
           {visible.length === 0 && (
             <tbody>
               <tr>
-                <td colSpan={11} className="muted text-center" style={{ padding: "24px 8px" }}>
+                <td colSpan={12} className="muted text-center" style={{ padding: "24px 8px" }}>
                   {q ? "No customers match this search." : "No customers to show."}
                 </td>
               </tr>
@@ -227,7 +232,7 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
           {visible.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={7} className="r">
+                <td colSpan={8} className="r">
                   Totals · {agreementRows.length} agreements (Rs)
                 </td>
                 <td className="num r">{num(totals.price)}</td>
@@ -243,7 +248,9 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
   );
 }
 
-function Guarantors({ group }: { group: CustomerGroup }) {
+// Names and contacts sit in two columns, each as one line joined with " / "
+// in the same order, so the nth name goes with the nth number.
+function GuarantorNames({ group }: { group: CustomerGroup }) {
   if (group.guarantors.length === 0) {
     return (
       <span className="muted italic">
@@ -251,14 +258,10 @@ function Guarantors({ group }: { group: CustomerGroup }) {
       </span>
     );
   }
-  return (
-    <ol className="cl-guarantors">
-      {group.guarantors.map((g) => (
-        <li key={g.slot}>
-          <span className="strong">{g.name}</span>
-          {g.cell && <span className="num muted"> · {g.cell}</span>}
-        </li>
-      ))}
-    </ol>
-  );
+  return <span className="strong">{group.guarantors.map((g) => g.name).join(" / ")}</span>;
+}
+
+function GuarantorContacts({ group }: { group: CustomerGroup }) {
+  if (group.guarantors.length === 0) return <span className="muted">—</span>;
+  return <>{group.guarantors.map((g) => g.cell ?? "—").join(" / ")}</>;
 }

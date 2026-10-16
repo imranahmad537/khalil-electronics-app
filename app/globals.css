@@ -241,13 +241,6 @@ input::placeholder {
   font-weight: 800;
   background: var(--soft);
 }
-.cl-guarantors {
-  margin: 0;
-  padding-left: 16px;
-}
-.cl-guarantors li + li {
-  margin-top: 2px;
-}
 
 /* Reports print on landscape A4 (wide tables); receipts keep the default page. */
 @page {
@@ -352,12 +345,6 @@ input::placeholder {
   }
   .cl-table .cl-group:nth-of-type(even) td {
     background: #f6f7f9;
-  }
-  .cl-guarantors {
-    padding-left: 11px;
-  }
-  .cl-guarantors li + li {
-    margin-top: 0;
   }
   /* compact report heading so the table starts higher on page 1 */
   .print-report h1 {
