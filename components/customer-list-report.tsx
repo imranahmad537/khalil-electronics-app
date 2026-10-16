@@ -2,73 +2,83 @@
 
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { DataTable, type DataColumn, type DataRow } from "@/components/data-table";
-import { money } from "@/lib/money";
 import type { CustomerListReportRow } from "@/lib/data/reports";
-import { GuarantorList } from "@/components/guarantor-list";
 import { guarantorSearchText } from "@/lib/guarantors";
 
-const COLUMNS: DataColumn[] = [
-  { label: "S.No", align: "left" },
-  { label: "Acc no", align: "left" },
-  { label: "Customer", align: "left" },
-  { label: "Guarantors", align: "left" },
-  { label: "Inst. price", align: "right" },
-  { label: "Installments", align: "left" },
-  { label: "Per month", align: "right" },
-  { label: "Advance", align: "right" },
-  { label: "Remaining", align: "right" },
+type Show = "all" | "balance" | "clear";
+const SHOW: { key: Show; label: string }[] = [
+  { key: "all", label: "All customers" },
+  { key: "balance", label: "With balance" },
+  { key: "clear", label: "No balance" },
 ];
 
-const GRID = "44px 80px minmax(140px,1.4fr) minmax(170px,1.6fr) 96px 92px 90px 90px 100px";
+interface CustomerGroup {
+  customerId: string;
+  accNo: string;
+  fullName: string;
+  cell: string;
+  guarantors: CustomerListReportRow["guarantors"];
+  noGuarantorReason: string | null;
+  agreements: CustomerListReportRow[];
+  remaining: number;
+  search: string;
+}
 
-const amount = (v: number | null) => (v == null ? "—" : money(v));
+// Plain numbers in the cells (the header says Rs) keep columns narrow on paper.
+const num = (v: number | null) => (v == null ? "—" : Math.round(v).toLocaleString("en-US"));
+const rs = (v: number) => "Rs " + Math.round(v).toLocaleString("en-US");
 
-// Printing prints what's filtered, so the search narrows the paper list too.
+function groupByCustomer(rows: CustomerListReportRow[]): CustomerGroup[] {
+  const groups = new Map<string, CustomerGroup>();
+  for (const r of rows) {
+    let g = groups.get(r.customerId);
+    if (!g) {
+      g = {
+        customerId: r.customerId,
+        accNo: r.accNo,
+        fullName: r.fullName,
+        cell: r.cell,
+        guarantors: r.guarantors,
+        noGuarantorReason: r.noGuarantorReason,
+        agreements: [],
+        remaining: 0,
+        search: [r.fullName, r.accNo, r.cell, guarantorSearchText(r.guarantors), r.noGuarantorReason ?? ""].join(" ").toLowerCase(),
+      };
+      groups.set(r.customerId, g);
+    }
+    g.agreements.push(r);
+    g.remaining += r.remaining ?? 0;
+    if (r.agreementNo) g.search += ` #${r.agreementNo}`;
+  }
+  return [...groups.values()];
+}
+
+// One block per customer: their details (and guarantors) once, then one line
+// per live agreement. Printing prints exactly what's filtered.
 export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) {
   const [query, setQuery] = useState("");
-
-  const searchIndex = useMemo(
-    () =>
-      rows.map((r) =>
-        [r.fullName, r.accNo, r.cell, guarantorSearchText(r.guarantors), r.noGuarantorReason ?? "", r.agreementNo ? `#${r.agreementNo}` : ""]
-          .join(" ")
-          .toLowerCase()
-      ),
-    [rows]
-  );
+  const [show, setShow] = useState<Show>("all");
+  const groups = useMemo(() => groupByCustomer(rows), [rows]);
 
   const q = query.trim().toLowerCase();
-  const visible = q ? rows.filter((_, i) => searchIndex[i].includes(q)) : rows;
-
-  const tableRows: DataRow[] = visible.map((r, i) => ({
-    key: r.key,
-    cells: [
-      { kind: "text", text: String(i + 1), weight: 600 },
-      { kind: "text", text: r.accNo, sub: r.agreementNo ? `#${r.agreementNo}` : "", weight: 700 },
-      { kind: "text", text: r.fullName, sub: r.cell, weight: 700 },
-      { kind: "node", node: <GuarantorList guarantors={r.guarantors} noGuarantorReason={r.noGuarantorReason} /> },
-      { kind: "text", text: amount(r.totalPrice), weight: 700, align: "right" },
-      {
-        kind: "text",
-        text: r.agreementNo == null ? "—" : r.planMonths ? `${r.planMonths} mo` : "Direct",
-        sub: r.installmentCount ? `${r.paidCount}/${r.installmentCount} paid` : "",
-        weight: 600,
-      },
-      { kind: "text", text: amount(r.monthly), weight: 600, align: "right" },
-      { kind: "text", text: amount(r.advance), weight: 600, align: "right" },
-      { kind: "text", text: amount(r.remaining), weight: 800, align: "right", fg: r.remaining ? "var(--red)" : undefined },
-    ],
-  }));
-
-  const totalPrice = visible.reduce((t, r) => t + (r.totalPrice ?? 0), 0);
-  const totalAdvance = visible.reduce((t, r) => t + (r.advance ?? 0), 0);
-  const totalRemaining = visible.reduce((t, r) => t + (r.remaining ?? 0), 0);
+  const visible = groups.filter(
+    (g) =>
+      (!q || g.search.includes(q)) &&
+      (show === "all" || (show === "balance" ? g.remaining > 0 : g.remaining <= 0))
+  );
+  const agreementRows = visible.flatMap((g) => g.agreements).filter((a) => a.agreementNo != null);
+  const totals = {
+    price: agreementRows.reduce((t, a) => t + (a.totalPrice ?? 0), 0),
+    advance: agreementRows.reduce((t, a) => t + (a.advance ?? 0), 0),
+    monthly: agreementRows.reduce((t, a) => t + (a.monthly ?? 0), 0),
+    remaining: agreementRows.reduce((t, a) => t + (a.remaining ?? 0), 0),
+  };
+  const filtered = !!q || show !== "all";
 
   return (
-    <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
+    <div className="cl-panel p-[16px_18px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-3">
       <div className="no-print flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-[220px] max-w-[460px] flex items-center gap-[9px] px-[14px] py-[9px] rounded-full bg-soft">
+        <div className="flex-1 min-w-[220px] max-w-[420px] flex items-center gap-[9px] px-[14px] py-[9px] rounded-full bg-soft">
           <Search size={16} strokeWidth={2.4} className="text-ink3" />
           <input
             value={query}
@@ -87,29 +97,168 @@ export function CustomerListReport({ rows }: { rows: CustomerListReportRow[] }) 
             </button>
           )}
         </div>
-        {q && (
-          <span className="text-[12px] font-semibold text-ink3">
-            {visible.length} of {rows.length} rows
+        <div className="flex gap-[5px] p-1 bg-soft rounded-full">
+          {SHOW.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setShow(s.key)}
+              className="border-0 cursor-pointer rounded-full px-[13px] py-[6px] text-[12px] font-bold whitespace-nowrap"
+              style={{ background: show === s.key ? "var(--ink)" : "transparent", color: show === s.key ? "#fff" : "var(--ink2)" }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="cl-summary flex gap-x-5 gap-y-1 flex-wrap text-[12px] text-ink2">
+        <span>
+          <b className="text-ink">{visible.length}</b> customers{filtered && ` (of ${groups.length})`}
+        </span>
+        <span>
+          <b className="text-ink">{agreementRows.length}</b> agreements
+        </span>
+        <span>
+          Installment value <b className="text-ink">{rs(totals.price)}</b>
+        </span>
+        <span>
+          Remaining <b className="text-red">{rs(totals.remaining)}</b>
+        </span>
+        {filtered && (
+          <span className="print-only">
+            Filter: {SHOW.find((s) => s.key === show)?.label}
+            {q && ` · “${query.trim()}”`}
           </span>
         )}
       </div>
 
-      {q && (
-        <div className="print-only text-[11px] text-ink3">
-          Filtered by “{query.trim()}” · {visible.length} of {rows.length} rows
-        </div>
-      )}
-
-      <DataTable
-        gridTemplate={GRID}
-        columns={COLUMNS}
-        rows={tableRows}
-        minWidth={1080}
-        emptyMessage={q ? "No customers match this search." : "No customers yet."}
-      />
-      <div className="px-1 py-3 text-xs text-ink2 font-bold">
-        {money(totalPrice)} installment value · {money(totalAdvance)} advance · {money(totalRemaining)} remaining
+      <div className="cl-scroll overflow-x-auto">
+        <table className="cl-table w-full min-w-[1040px] border-collapse text-[12.5px]">
+          <colgroup>
+            <col style={{ width: "3%" }} />
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "15%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "23%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "9%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Acc no</th>
+              <th>Customer</th>
+              <th>Cell</th>
+              <th>Guarantors (name · cell)</th>
+              <th>Agr.</th>
+              <th>Plan</th>
+              <th className="r">Inst. price</th>
+              <th className="r">Advance</th>
+              <th className="r">Monthly</th>
+              <th className="r">Remaining</th>
+            </tr>
+          </thead>
+          {visible.map((g, i) => {
+            const span = g.agreements.length;
+            return (
+              <tbody key={g.customerId} className="cl-group">
+                {g.agreements.map((a, j) => (
+                  <tr key={a.key}>
+                    {j === 0 && (
+                      <>
+                        <td rowSpan={span} className="muted">
+                          {i + 1}
+                        </td>
+                        <td rowSpan={span} className="num strong">
+                          {g.accNo}
+                        </td>
+                        <td rowSpan={span} className="strong">
+                          {g.fullName}
+                        </td>
+                        <td rowSpan={span} className="num nowrap">
+                          {g.cell}
+                        </td>
+                        <td rowSpan={span}>
+                          <Guarantors group={g} />
+                        </td>
+                      </>
+                    )}
+                    {a.agreementNo == null ? (
+                      <td colSpan={6} className="muted">
+                        No active agreement
+                      </td>
+                    ) : (
+                      <>
+                        <td className="num">#{a.agreementNo}</td>
+                        <td className="nowrap">
+                          {a.planMonths ? `${a.planMonths} mo` : "Direct"}
+                          {a.installmentCount > 0 && (
+                            <span className="muted">
+                              {" "}
+                              · {a.paidCount}/{a.installmentCount}
+                            </span>
+                          )}
+                        </td>
+                        <td className="num r">{num(a.totalPrice)}</td>
+                        <td className="num r">{num(a.advance)}</td>
+                        <td className="num r">{num(a.monthly)}</td>
+                        <td className={`num r strong ${a.remaining ? "text-red" : ""}`}>{num(a.remaining)}</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            );
+          })}
+          {visible.length === 0 && (
+            <tbody>
+              <tr>
+                <td colSpan={11} className="muted text-center" style={{ padding: "24px 8px" }}>
+                  {q ? "No customers match this search." : "No customers to show."}
+                </td>
+              </tr>
+            </tbody>
+          )}
+          {visible.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={7} className="r">
+                  Totals · {agreementRows.length} agreements (Rs)
+                </td>
+                <td className="num r">{num(totals.price)}</td>
+                <td className="num r">{num(totals.advance)}</td>
+                <td className="num r">{num(totals.monthly)}</td>
+                <td className="num r text-red">{num(totals.remaining)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
       </div>
     </div>
+  );
+}
+
+function Guarantors({ group }: { group: CustomerGroup }) {
+  if (group.guarantors.length === 0) {
+    return (
+      <span className="muted italic">
+        {group.noGuarantorReason ? `No guarantor — ${group.noGuarantorReason}` : "—"}
+      </span>
+    );
+  }
+  return (
+    <ol className="cl-guarantors">
+      {group.guarantors.map((g) => (
+        <li key={g.slot}>
+          <span className="strong">{g.name}</span>
+          {g.cell && <span className="num muted"> · {g.cell}</span>}
+        </li>
+      ))}
+    </ol>
   );
 }

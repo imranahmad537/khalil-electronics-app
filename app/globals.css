@@ -202,13 +202,60 @@ input::placeholder {
   display: none;
 }
 
+/* Customer list report: a real bordered table, one block per customer. */
+.cl-table th,
+.cl-table td {
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.3;
+}
+.cl-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--soft);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.cl-table .r {
+  text-align: right;
+}
+.cl-table .strong {
+  font-weight: 700;
+}
+.cl-table .muted {
+  color: var(--ink3);
+}
+.cl-table .nowrap {
+  white-space: nowrap;
+}
+.cl-table .cl-group:nth-of-type(even) td {
+  background: #fbfbfc;
+}
+.cl-table tfoot td {
+  font-weight: 800;
+  background: var(--soft);
+}
+.cl-guarantors {
+  margin: 0;
+  padding-left: 16px;
+}
+.cl-guarantors li + li {
+  margin-top: 2px;
+}
+
 /* Reports print on landscape A4 (wide tables); receipts keep the default page. */
 @page {
   margin: 12mm;
 }
 @page report {
   size: A4 landscape;
-  margin: 10mm;
+  margin: 7mm;
 }
 
 @media print {
@@ -266,6 +313,58 @@ input::placeholder {
   }
   .trow {
     break-inside: avoid;
+  }
+
+  /* Customer list: dense rows so a page holds as many customers as possible.
+     The header row repeats on every page and a customer's block never splits. */
+  .cl-panel {
+    padding: 0 !important;
+    gap: 4px !important;
+    border: 0 !important;
+  }
+  .cl-summary {
+    font-size: 8pt !important;
+  }
+  .cl-scroll {
+    overflow: visible !important;
+  }
+  .cl-table {
+    min-width: 0 !important;
+    font-size: 7.5pt !important;
+  }
+  .cl-table th,
+  .cl-table td {
+    padding: 1.5px 4px;
+    border: 0.5pt solid #b8bec8;
+    line-height: 1.2;
+  }
+  .cl-table thead {
+    display: table-header-group;
+  }
+  .cl-table thead th {
+    position: static;
+    font-size: 6.5pt;
+    background: #eef0f3;
+    color: #344054;
+  }
+  .cl-table .cl-group {
+    break-inside: avoid;
+  }
+  .cl-table .cl-group:nth-of-type(even) td {
+    background: #f6f7f9;
+  }
+  .cl-guarantors {
+    padding-left: 11px;
+  }
+  .cl-guarantors li + li {
+    margin-top: 0;
+  }
+  /* compact report heading so the table starts higher on page 1 */
+  .print-report h1 {
+    font-size: 15pt !important;
+  }
+  .print-report > * + * {
+    margin-top: 4px;
   }
 }
 

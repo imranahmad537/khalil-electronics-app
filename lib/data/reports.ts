@@ -305,6 +305,7 @@ export async function getProfitLossReport(monthKey?: string): Promise<ProfitLoss
 // One row per live agreement (pending / open); customers with none get a single row with blanks.
 export interface CustomerListReportRow {
   key: string;
+  customerId: string;
   accNo: string;
   fullName: string;
   cell: string;
@@ -365,6 +366,7 @@ export async function getCustomerListReport(): Promise<CustomerListReport> {
   const rows: CustomerListReportRow[] = [];
   for (const c of (data ?? []) as unknown as CustomerRecord[]) {
     const base = {
+      customerId: c.id,
       accNo: c.acc_no,
       fullName: c.full_name,
       cell: c.cell,
