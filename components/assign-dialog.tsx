@@ -125,10 +125,10 @@ export function AssignDialog({
       </span>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-[520px] max-w-full bg-panel rounded-3xl shadow-[var(--sh)] p-6 flex flex-col gap-3 max-h-[88vh]">
-            <div className="flex items-start justify-between">
+          <div className="w-[520px] max-w-full bg-panel rounded-3xl shadow-[var(--sh)] p-5 min-[520px]:p-6 flex flex-col gap-3 max-h-[88vh] max-h-[88dvh] overflow-hidden">
+            <div className="flex-none flex items-start justify-between">
               <div>
-                <h2 className="text-[16.5px] font-extrabold m-0">Assign customers</h2>
+                <h2 className="text-[16.5px] font-extrabold m-0">{confirming ? "Confirm transfer" : "Assign customers"}</h2>
                 <p className="m-0 mt-1 text-[12px] text-ink3">Each customer has one field officer. Moving someone from another officer is a transfer.</p>
               </div>
               <button onClick={() => setOpen(false)} className="iconbtn border-0 cursor-pointer w-8 h-8 rounded-full bg-soft text-ink2 flex items-center justify-center">
@@ -136,7 +136,9 @@ export function AssignDialog({
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            {!confirming && (
+            <>
+            <div className="flex-none flex items-center gap-2">
               <span className="text-[12px] font-bold text-ink2 whitespace-nowrap">Assign to</span>
               <select
                 value={avoId}
@@ -154,7 +156,7 @@ export function AssignDialog({
               </select>
             </div>
 
-            <div className="flex gap-1 p-1 bg-soft rounded-full">
+            <div className="flex-none flex gap-1 p-1 bg-soft rounded-full">
               {FILTERS.map((f) => (
                 <button
                   key={f.key}
@@ -171,10 +173,10 @@ export function AssignDialog({
               placeholder="Search name, account, area or officer"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-ink outline-none"
+              className="flex-none px-[15px] py-[10px] rounded-xl border border-line bg-soft text-[13.5px] text-ink outline-none"
             />
 
-            <div className="flex items-center justify-between text-[11.5px] text-ink3 px-1">
+            <div className="flex-none flex items-center justify-between text-[11.5px] text-ink3 px-1">
               <button
                 onClick={() => {
                   setConfirming(false);
@@ -192,7 +194,7 @@ export function AssignDialog({
               )}
             </div>
 
-            <div className="flex flex-col gap-[2px] overflow-y-auto flex-1 min-h-[180px]">
+            <div className="flex flex-col gap-[2px] overflow-y-auto flex-1 min-h-[96px]">
               {filtered.map((c) => {
                 const already = c.avoId === avoId;
                 const transfer = isTransfer(c);
@@ -235,29 +237,49 @@ export function AssignDialog({
               )}
             </div>
 
-            {confirming && transfers.length > 0 && (
-              <div className="flex flex-col gap-2 p-3 rounded-xl bg-amber50 text-[12.5px]" style={{ color: "#8a5a10" }}>
-                <span className="flex items-start gap-2 font-semibold">
-                  <AlertTriangle size={15} strokeWidth={2.4} className="flex-none mt-[1px]" />
-                  {transfers.length} of these customer{transfers.length === 1 ? "" : "s"} belong to {fromNames.join(", ")}. They&apos;ll move to {target?.name}.
-                </span>
-                <span className="text-[11.5px] leading-[1.45]">
-                  Their pending house visits move too. Money already collected stays credited to the old officer, who can still sync offline collections for
-                  3 days.
-                </span>
+            </>
+            )}
+
+            {confirming && (
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+                <div className="flex flex-col gap-2 p-3 rounded-xl bg-amber50 text-[12.5px]" style={{ color: "#8a5a10" }}>
+                  <span className="flex items-start gap-2 font-semibold">
+                    <AlertTriangle size={15} strokeWidth={2.4} className="flex-none mt-[1px]" />
+                    {transfers.length} customer{transfers.length === 1 ? "" : "s"} will move from {fromNames.join(", ")} to {target?.name}.
+                  </span>
+                  <span className="text-[11.5px] leading-[1.45]">
+                    Their pending house visits move too. Money already collected stays credited to the old officer, who can still sync offline collections for
+                    3 days.
+                  </span>
+                </div>
+                <div className="flex flex-col rounded-xl border border-line">
+                  {transfers.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-[7px] border-b border-line last:border-b-0 text-[12.5px]">
+                      <span className="font-semibold truncate">{c.fullName}</span>
+                      <span className="text-[11px] text-ink3 whitespace-nowrap">
+                        {c.avoName} → {target?.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {chosen.length > transfers.length && (
+                  <span className="text-[11.5px] text-ink3">
+                    Plus {chosen.length - transfers.length} customer{chosen.length - transfers.length === 1 ? "" : "s"} with no active officer, assigned at the same time.
+                  </span>
+                )}
                 <input
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Reason (optional) — e.g. area change, officer on leave"
-                  className="px-[12px] py-[8px] rounded-lg border border-line bg-white text-[12.5px] text-ink outline-none"
+                  className="px-[12px] py-[9px] rounded-lg border border-line bg-soft text-[12.5px] text-ink outline-none"
                 />
               </div>
             )}
 
-            {error && <div className="text-[12px] font-semibold text-red">{error}</div>}
+            {error && <div className="flex-none text-[12px] font-semibold text-red">{error}</div>}
 
             {confirming ? (
-              <div className="flex gap-2">
+              <div className="flex-none flex gap-2">
                 <button
                   onClick={() => setConfirming(false)}
                   className="flex-1 border border-line cursor-pointer rounded-full px-5 py-[12px] text-[13px] font-bold bg-white text-ink2"
@@ -277,7 +299,7 @@ export function AssignDialog({
               <button
                 onClick={() => submit(false)}
                 disabled={pending || selected.size === 0 || !avoId}
-                className="btnp border-0 cursor-pointer rounded-full px-5 py-[13px] flex items-center justify-center gap-2 text-[13.5px] font-bold bg-g500 text-white disabled:opacity-60"
+                className="flex-none btnp border-0 cursor-pointer rounded-full px-5 py-[13px] flex items-center justify-center gap-2 text-[13.5px] font-bold bg-g500 text-white disabled:opacity-60"
               >
                 <UserCheck size={16} strokeWidth={2.4} />
                 {pending

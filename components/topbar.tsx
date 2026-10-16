@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Menu, Search, Clock, Mail } from "lucide-react";
 import { initials } from "@/lib/money";
 import { AttendanceWidget } from "@/components/attendance-widget";
@@ -24,8 +24,54 @@ export function Topbar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isField = pathname.startsWith("/avo");
-  const [query, setQuery] = useState("");
+  const urlQuery = pathname === "/customers" ? (searchParams.get("q") ?? "") : "";
+  const [query, setQuery] = useState(urlQuery);
+  // Page the user was on before the search took them to /customers; clearing the box returns there.
+  const originRef = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Last term this box put in the URL, so our own navigations don't overwrite what's being typed.
+  const sentRef = useRef(urlQuery);
+
+  // Keep the box in sync when the URL changes elsewhere (e.g. "Clear search", navigating away).
+  useEffect(() => {
+    if (urlQuery !== sentRef.current) {
+      sentRef.current = urlQuery;
+      setQuery(urlQuery);
+    }
+    if (pathname !== "/customers") originRef.current = null;
+  }, [urlQuery, pathname]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  function runSearch(value: string) {
+    const term = value.trim();
+    sentRef.current = term;
+    if (!term) {
+      if (pathname === "/customers" && searchParams.get("q")) {
+        const origin = originRef.current;
+        originRef.current = null;
+        router.replace(origin ?? "/customers");
+      }
+      return;
+    }
+    const url = `/customers?q=${encodeURIComponent(term)}`;
+    if (pathname === "/customers") {
+      router.replace(url);
+    } else {
+      originRef.current = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+      router.push(url);
+    }
+  }
+
+  function onQueryChange(value: string) {
+    setQuery(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => runSearch(value), value.trim() ? 300 : 0);
+  }
 
   return (
     <div className="topbar flex-none px-4 py-[11px] bg-panel rounded-[var(--r-lg)] shadow-[var(--sh)]">
@@ -41,11 +87,14 @@ export function Topbar({
         <Search size={16} strokeWidth={2.4} />
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && query.trim()) router.push(`/customers?q=${encodeURIComponent(query.trim())}`);
+            if (e.key === "Enter") {
+              if (timerRef.current) clearTimeout(timerRef.current);
+              runSearch(query);
+            }
           }}
-          placeholder="Search customer, account, cell… (Enter)"
+          placeholder="Search customer, account, cell…"
           className="flex-1 min-w-0 border-0 bg-transparent text-[13.5px] text-ink outline-none"
         />
         <span className="num hide-md text-[10.5px] font-bold px-[7px] py-[3px] rounded-[7px] bg-white text-ink3 border border-line">
