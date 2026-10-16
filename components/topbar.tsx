@@ -50,27 +50,41 @@ export function Topbar({
   function runSearch(value: string) {
     const term = value.trim();
     sentRef.current = term;
+    const onRegister = pathname === "/customers";
     if (!term) {
-      if (pathname === "/customers" && searchParams.get("q")) {
-        const origin = originRef.current;
+      const origin = originRef.current;
+      if (origin) {
+        // Search started elsewhere (e.g. dashboard): go back there.
         originRef.current = null;
-        router.replace(origin ?? "/customers");
+        router.replace(origin);
+      } else if (onRegister && searchParams.get("q")) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("q");
+        const qs = params.toString();
+        window.history.replaceState(null, "", `/customers${qs ? "?" + qs : ""}`);
       }
       return;
     }
-    const url = `/customers?q=${encodeURIComponent(term)}`;
-    if (pathname === "/customers") {
-      router.replace(url);
+    if (onRegister) {
+      // Already on the register: it filters client-side, so just update the URL (no server reload).
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("q", term);
+      window.history.replaceState(null, "", `/customers?${params.toString()}`);
+    } else if (originRef.current) {
+      // Register is still loading from the first keystrokes; just retarget it.
+      router.replace(`/customers?q=${encodeURIComponent(term)}`);
     } else {
       originRef.current = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
-      router.push(url);
+      router.push(`/customers?q=${encodeURIComponent(term)}`);
     }
   }
 
   function onQueryChange(value: string) {
     setQuery(value);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => runSearch(value), value.trim() ? 300 : 0);
+    // Off the register, wait briefly before navigating; on it, filtering is instant.
+    const delay = pathname !== "/customers" && value.trim() ? 250 : 0;
+    timerRef.current = setTimeout(() => runSearch(value), delay);
   }
 
   return (

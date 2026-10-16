@@ -1,9 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 
 export function AvoFilter({ officers }: { officers: string[] }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const current = searchParams.get("avo") ?? "all";
@@ -12,7 +11,9 @@ export function AvoFilter({ officers }: { officers: string[] }) {
     const params = new URLSearchParams(searchParams.toString());
     if (value === "all") params.delete("avo");
     else params.set("avo", value);
-    router.push(`${pathname}?${params.toString()}`);
+    const qs = params.toString();
+    // Filtering happens client-side, so update the URL without a server round-trip.
+    window.history.pushState(null, "", `${pathname}${qs ? "?" + qs : ""}`);
   }
 
   return (
