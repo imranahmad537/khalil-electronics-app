@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CELL_PATTERN, CNIC_PATTERN, cellError } from "@/lib/validation";
+import { MAX_GUARANTORS } from "@/lib/guarantors";
 
 // Formats live in lib/validation.ts so every form validates the same way.
 export { CNIC_PATTERN, CELL_PATTERN, maskCnic, maskCell } from "@/lib/validation";
@@ -38,8 +39,10 @@ export const agreementFormSchema = z
     avoId: z.string().nullable(),
 
     useExistingGuarantors: z.boolean(),
-    guarantor1: guarantorSchema,
-    guarantor2: guarantorSchema,
+    guarantors: z.array(guarantorSchema).max(MAX_GUARANTORS, `At most ${MAX_GUARANTORS} guarantors`),
+    /** Installment without any guarantor (e.g. a relative) — needs noGuarantorReason. */
+    noGuarantor: z.boolean(),
+    noGuarantorReason: z.string(),
 
     items: z.array(itemSchema),
 
@@ -77,17 +80,31 @@ export const agreementFormSchema = z
       }
     }
     if (isInstallment && !data.useExistingGuarantors) {
-      for (const slot of ["guarantor1", "guarantor2"] as const) {
-        const g = data[slot];
-        if (!g.name.trim()) ctx.addIssue({ code: "custom", path: [slot, "name"], message: "Required" });
-        if (!CNIC_PATTERN.test(g.cnic)) ctx.addIssue({ code: "custom", path: [slot, "cnic"], message: "Format: 00000-0000000-0" });
-        if (!CELL_PATTERN.test(g.cell)) ctx.addIssue({ code: "custom", path: [slot, "cell"], message: "Format: 03XX-XXXXXXX" });
-      }
-      if (data.guarantor1.cnic && data.guarantor1.cnic === data.guarantor2.cnic) {
-        ctx.addIssue({ code: "custom", path: ["guarantor2", "cnic"], message: "Same CNIC as Guarantor 1" });
-      }
-      if (data.mode === "new" && data.cnic && (data.cnic === data.guarantor1.cnic || data.cnic === data.guarantor2.cnic)) {
-        ctx.addIssue({ code: "custom", path: ["guarantor1", "cnic"], message: "Can't match the customer's CNIC" });
+      if (data.noGuarantor) {
+        if (!data.noGuarantorReason.trim()) {
+          ctx.addIssue({ code: "custom", path: ["noGuarantorReason"], message: "Say why no guarantor is needed" });
+        }
+      } else {
+        if (data.guarantors.length === 0) {
+          ctx.addIssue({ code: "custom", path: ["guarantors"], message: "Add a guarantor, or mark this sale as no guarantor" });
+        }
+        const seen = new Map<string, number>();
+        data.guarantors.forEach((g, i) => {
+          if (!g.name.trim()) ctx.addIssue({ code: "custom", path: ["guarantors", i, "name"], message: "Required" });
+          if (!CNIC_PATTERN.test(g.cnic)) ctx.addIssue({ code: "custom", path: ["guarantors", i, "cnic"], message: "Format: 00000-0000000-0" });
+          if (!CELL_PATTERN.test(g.cell)) ctx.addIssue({ code: "custom", path: ["guarantors", i, "cell"], message: "Format: 03XX-XXXXXXX" });
+          if (g.cnic) {
+            const first = seen.get(g.cnic);
+            if (first !== undefined) {
+              ctx.addIssue({ code: "custom", path: ["guarantors", i, "cnic"], message: `Same CNIC as Guarantor ${first + 1}` });
+            } else {
+              seen.set(g.cnic, i);
+            }
+            if (data.mode === "new" && data.cnic && g.cnic === data.cnic) {
+              ctx.addIssue({ code: "custom", path: ["guarantors", i, "cnic"], message: "Can't match the customer's CNIC" });
+            }
+          }
+        });
       }
     }
   });
@@ -112,8 +129,9 @@ export function defaultAgreementValues(): AgreementFormValues {
     occupation: "",
     avoId: null,
     useExistingGuarantors: false,
-    guarantor1: emptyGuarantor(),
-    guarantor2: emptyGuarantor(),
+    guarantors: [emptyGuarantor()],
+    noGuarantor: false,
+    noGuarantorReason: "",
     items: [{ productId: "", serialNo: "", qty: 1, unitPrice: 0 }],
     plan: null,
     advance: 0,

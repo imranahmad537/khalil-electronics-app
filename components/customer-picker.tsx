@@ -69,7 +69,7 @@ export function CustomerPicker({
   function pickCustomer(c: ExistingCustomerOption) {
     setValue("customerId", c.id);
     setSearch(c.fullName);
-    setValue("useExistingGuarantors", !!(c.g1Name || c.g2Name));
+    setValue("useExistingGuarantors", c.guarantors.length > 0 || !!c.noGuarantorReason);
   }
 
   function onAreaChange(value: string) {
@@ -269,7 +269,7 @@ export function CustomerPicker({
                     : "This account is currently overdue"}
                 </div>
               )}
-              {(selected.g1Name || selected.g2Name) && (
+              {(selected.guarantors.length > 0 || selected.noGuarantorReason) && (
                 <label className="flex items-center gap-2 text-[12.5px] font-semibold text-ink2">
                   <Controller
                     name="useExistingGuarantors"
@@ -278,7 +278,8 @@ export function CustomerPicker({
                       <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />
                     )}
                   />
-                  Use previous guarantors ({selected.g1Name ?? "—"} / {selected.g2Name ?? "—"})
+                  Use guarantors on file (
+                  {selected.guarantors.length > 0 ? selected.guarantors.map((g) => g.name).join(", ") : "no guarantor required"})
                 </label>
               )}
             </div>

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import { shopMonthRange, shopMonthStartStr } from "@/lib/shop-time";
 import type { CustomerMonthStatus } from "@/lib/types";
+import { toGuarantorBriefs, type GuarantorBrief } from "@/lib/guarantors";
 
 // Month bounds on the shop calendar (Asia/Karachi), not the server's.
 function monthRange(monthKey?: string) {
@@ -67,8 +68,8 @@ export interface ReceivableRow {
   agreementNo: number;
   customerName: string;
   accNo: string;
-  g1: string;
-  g2: string;
+  guarantors: GuarantorBrief[];
+  noGuarantorReason: string | null;
   dueAmount: number;
   monthsBehind: number;
 }
@@ -79,7 +80,7 @@ export async function getInstallmentsReceivableReport() {
       supabase
     .from("installments")
     .select(
-      "agreement_id, due_amount, carry_in, paid, due_month, agreements!inner(id, agreement_no, status, customers(full_name, acc_no, guarantors(slot, full_name)))"
+      "agreement_id, due_amount, carry_in, paid, due_month, agreements!inner(id, agreement_no, status, customers(full_name, acc_no, no_guarantor_reason, guarantors(slot, full_name, cell)))"
     )
     .eq("agreements.status", "open")
     .neq("status", "paid")
@@ -98,7 +99,12 @@ export async function getInstallmentsReceivableReport() {
     agreements: {
       id: string;
       agreement_no: number;
-      customers: { full_name: string; acc_no: string; guarantors: { slot: number; full_name: string }[] } | null;
+      customers: {
+        full_name: string;
+        acc_no: string;
+        no_guarantor_reason: string | null;
+        guarantors: { slot: number; full_name: string; cell: string | null }[];
+      } | null;
     } | null;
   };
 
@@ -116,15 +122,13 @@ export async function getInstallmentsReceivableReport() {
       existing.dueAmount += owed;
       existing.monthsBehind += behind;
     } else {
-      const g1 = ag.customers.guarantors.find((g) => g.slot === 1)?.full_name ?? "—";
-      const g2 = ag.customers.guarantors.find((g) => g.slot === 2)?.full_name ?? "—";
       byAgreement.set(r.agreement_id, {
         agreementId: ag.id,
         agreementNo: ag.agreement_no,
         customerName: ag.customers.full_name,
         accNo: ag.customers.acc_no,
-        g1,
-        g2,
+        guarantors: toGuarantorBriefs(ag.customers.guarantors),
+        noGuarantorReason: ag.customers.no_guarantor_reason,
         dueAmount: owed,
         monthsBehind: behind,
       });
@@ -176,10 +180,8 @@ export interface DefaulterRow {
   cell: string;
   monthsBehind: number;
   dueNow: number;
-  g1Name: string | null;
-  g1Cell: string | null;
-  g2Name: string | null;
-  g2Cell: string | null;
+  guarantors: GuarantorBrief[];
+  noGuarantorReason: string | null;
 }
 
 export async function getDefaulterList() {
@@ -195,17 +197,34 @@ export async function getDefaulterList() {
     );
   if (error) throw new Error(error.message);
 
-  const rows: DefaulterRow[] = ((data ?? []) as CustomerMonthStatus[]).map((r) => ({
+  const statusRows = (data ?? []) as CustomerMonthStatus[];
+
+  // The status view only carries guarantors 1 and 2; load the full list (and any waiver) per defaulter.
+  type GuarantorInfo = {
+    id: string;
+    no_guarantor_reason: string | null;
+    guarantors: { slot: number; full_name: string; cell: string | null }[];
+  };
+  const infoById = new Map<string, GuarantorInfo>();
+  const ids = statusRows.map((r) => r.customer_id);
+  for (let i = 0; i < ids.length; i += 200) {
+    const res = await supabase
+      .from("customers")
+      .select("id, no_guarantor_reason, guarantors(slot, full_name, cell)")
+      .in("id", ids.slice(i, i + 200));
+    if (res.error) throw new Error(res.error.message);
+    for (const c of (res.data ?? []) as unknown as GuarantorInfo[]) infoById.set(c.id, c);
+  }
+
+  const rows: DefaulterRow[] = statusRows.map((r) => ({
     customerId: r.customer_id,
     customerName: r.full_name,
     accNo: r.acc_no,
     cell: r.cell,
     monthsBehind: r.months_behind ?? 0,
     dueNow: Math.max(0, r.due_now ?? 0),
-    g1Name: r.g1_name,
-    g1Cell: r.g1_cell,
-    g2Name: r.g2_name,
-    g2Cell: r.g2_cell,
+    guarantors: toGuarantorBriefs(infoById.get(r.customer_id)?.guarantors),
+    noGuarantorReason: infoById.get(r.customer_id)?.no_guarantor_reason ?? null,
   }));
 
   return { rows, total: rows.reduce((t, r) => t + r.dueNow, 0) };
@@ -279,5 +298,121 @@ export async function getProfitLossReport(monthKey?: string): Promise<ProfitLoss
     expensesThisMonth,
     // receipts already include signing-day money and direct sales (create_sale writes them)
     netCashPosition: recoveryThisMonth - expensesThisMonth,
+  };
+}
+
+// ---------- Customer list ----------
+// One row per live agreement (pending / open); customers with none get a single row with blanks.
+export interface CustomerListReportRow {
+  key: string;
+  accNo: string;
+  fullName: string;
+  cell: string;
+  guarantors: GuarantorBrief[];
+  noGuarantorReason: string | null;
+  agreementNo: number | null;
+  totalPrice: number | null;
+  planMonths: number | null;
+  paidCount: number;
+  installmentCount: number;
+  monthly: number | null;
+  advance: number | null;
+  remaining: number | null;
+}
+
+export interface CustomerListReport {
+  rows: CustomerListReportRow[];
+  customerCount: number;
+  totalPrice: number;
+  totalAdvance: number;
+  totalRemaining: number;
+}
+
+export async function getCustomerListReport(): Promise<CustomerListReport> {
+  const supabase = await createClient();
+  const { data, error } = await fetchAll((a, b) =>
+    supabase
+      .from("customers")
+      .select(
+        "id, acc_no, full_name, cell, no_guarantor_reason, guarantors(slot, full_name, cell), agreements(id, agreement_no, plan_months, total_price, advance, monthly, status, installments(status), receipts(amount))"
+      )
+      .order("full_name")
+      .order("id")
+      .range(a, b)
+  );
+  if (error) throw new Error(error.message);
+
+  type CustomerRecord = {
+    id: string;
+    acc_no: string;
+    full_name: string;
+    cell: string;
+    no_guarantor_reason: string | null;
+    guarantors: { slot: number; full_name: string; cell: string | null }[];
+    agreements: {
+      id: string;
+      agreement_no: number;
+      plan_months: number | null;
+      total_price: number;
+      advance: number;
+      monthly: number;
+      status: string;
+      installments: { status: string }[];
+      receipts: { amount: number }[];
+    }[];
+  };
+
+  const rows: CustomerListReportRow[] = [];
+  for (const c of (data ?? []) as unknown as CustomerRecord[]) {
+    const base = {
+      accNo: c.acc_no,
+      fullName: c.full_name,
+      cell: c.cell,
+      guarantors: toGuarantorBriefs(c.guarantors),
+      noGuarantorReason: c.no_guarantor_reason,
+    };
+    const live = c.agreements
+      .filter((a) => a.status === "open" || a.status === "pending_verification")
+      .sort((x, y) => x.agreement_no - y.agreement_no);
+
+    if (live.length === 0) {
+      rows.push({
+        ...base,
+        key: c.id,
+        agreementNo: null,
+        totalPrice: null,
+        planMonths: null,
+        paidCount: 0,
+        installmentCount: 0,
+        monthly: null,
+        advance: null,
+        remaining: null,
+      });
+      continue;
+    }
+    for (const a of live) {
+      // Receipts include the advance taken at signing, so this is what's left to recover.
+      const received = (a.receipts ?? []).reduce((t, r) => t + Number(r.amount), 0);
+      rows.push({
+        ...base,
+        key: a.id,
+        agreementNo: a.agreement_no,
+        totalPrice: Number(a.total_price),
+        planMonths: a.plan_months,
+        paidCount: a.installments.filter((i) => i.status === "paid").length,
+        installmentCount: a.installments.length,
+        monthly: Number(a.monthly),
+        advance: Number(a.advance),
+        remaining: Math.max(0, Number(a.total_price) - received),
+      });
+    }
+  }
+
+  return {
+    rows,
+    customerCount: (data ?? []).length,
+    totalPrice: rows.reduce((t, r) => t + (r.totalPrice ?? 0), 0),
+    totalAdvance: rows.reduce((t, r) => t + (r.advance ?? 0), 0),
+    totalRemaining: rows.reduce((t, r) => t + (r.remaining ?? 0), 0),
   };
 }

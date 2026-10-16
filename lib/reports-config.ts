@@ -1,4 +1,4 @@
-import { CheckCircle, Calendar, MapPin, AlertTriangle, BookOpen, Truck, Box, TrendingUp, type LucideIcon } from "lucide-react";
+import { CheckCircle, Calendar, MapPin, AlertTriangle, BookOpen, Truck, Box, TrendingUp, Users, type LucideIcon } from "lucide-react";
 
 export interface ReportDef {
   key: string;
@@ -50,6 +50,14 @@ export const REPORTS: ReportDef[] = [
     name: "Customer ledger",
     note: "Every invoice, receipt and carry-forward per account.",
     icon: BookOpen,
+    tone: "plain",
+  },
+  {
+    key: "customer-list",
+    group: "Ledgers",
+    name: "Customer list",
+    note: "All customers with guarantors, plan, advance and balance — printable.",
+    icon: Users,
     tone: "plain",
   },
   {

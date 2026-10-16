@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { PrintButton } from "@/components/print-button";
 import { DataTable, type DataRow, type DataColumn } from "@/components/data-table";
 import { LedgerSearch } from "@/components/ledger-search";
+import { CustomerListReport } from "@/components/customer-list-report";
+import { GuarantorList } from "@/components/guarantor-list";
 import { StatTile } from "@/components/stat-tile";
 import { money } from "@/lib/money";
 import { SHOP_NAME } from "@/lib/constants";
@@ -16,6 +18,7 @@ import {
   getDailyRecoverySheet,
   getDefaulterList,
   getCustomerLedgerIndex,
+  getCustomerListReport,
   getProfitLossReport,
 } from "@/lib/data/reports";
 import { getVendorsData } from "@/lib/data/vendors";
@@ -117,7 +120,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       cells: [
         { kind: "text", text: r.customerName, sub: "Acc " + r.accNo, weight: 700 },
         { kind: "text", text: `#${r.agreementNo}`, weight: 600 },
-        { kind: "text", text: `${r.g1} / ${r.g2}`, weight: 500 },
+        { kind: "node", node: <GuarantorList guarantors={r.guarantors} noGuarantorReason={r.noGuarantorReason} /> },
         { kind: "text", text: money(r.dueAmount), weight: 800, align: "right", fg: r.monthsBehind > 0 ? "var(--red)" : undefined },
       ],
     }));
@@ -167,8 +170,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
     const columns: DataColumn[] = [
       { label: "Customer", align: "left" },
       { label: "Months behind", align: "left" },
-      { label: "Guarantor 1", align: "left" },
-      { label: "Guarantor 2", align: "left" },
+      { label: "Guarantors", align: "left" },
       { label: "Due", align: "right" },
     ];
     const rows: DataRow[] = data.rows.map((r) => ({
@@ -176,8 +178,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       cells: [
         { kind: "text", text: r.customerName, sub: "Acc " + r.accNo + " · " + r.cell, weight: 700 },
         { kind: "text", text: String(r.monthsBehind), weight: 700, fg: "var(--red)" },
-        { kind: "text", text: r.g1Name ? `${r.g1Name} · ${r.g1Cell ?? "—"}` : "—", weight: 500 },
-        { kind: "text", text: r.g2Name ? `${r.g2Name} · ${r.g2Cell ?? "—"}` : "—", weight: 500 },
+        { kind: "node", node: <GuarantorList guarantors={r.guarantors} noGuarantorReason={r.noGuarantorReason} /> },
         { kind: "text", text: money(r.dueNow), weight: 800, align: "right", fg: "var(--red)" },
       ],
     }));
@@ -185,7 +186,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
       <div className="print-report flex flex-col gap-4">
         {header(`${data.rows.length} defaulters · flag guarantors for contact`)}
         <div className="p-[19px_20px_8px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-[13px]">
-          <DataTable gridTemplate="minmax(170px,1.5fr) 120px minmax(150px,1.2fr) minmax(150px,1.2fr) 120px" columns={columns} rows={rows} minWidth={820} emptyMessage="No defaulters right now." />
+          <DataTable gridTemplate="minmax(170px,1.5fr) 120px minmax(200px,1.6fr) 120px" columns={columns} rows={rows} minWidth={820} emptyMessage="No defaulters right now." />
           <div className="px-1 py-3 text-xs text-ink2 font-bold">{money(data.total)} at risk</div>
         </div>
       </div>
@@ -200,6 +201,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ k
         <div className="no-print">
           <LedgerSearch customers={customers} />
         </div>
+      </div>
+    );
+  }
+
+  if (key === "customer-list") {
+    const data = await getCustomerListReport();
+    return (
+      <div className="print-report flex flex-col gap-4">
+        {header(`${data.customerCount} customers · ${data.rows.length} rows`)}
+        <CustomerListReport rows={data.rows} />
       </div>
     );
   }

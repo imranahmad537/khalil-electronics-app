@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import type { CustomerMonthStatus, CustomerStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer } from "@/lib/data/agreements";
+import { toGuarantorBriefs, type GuarantorBrief } from "@/lib/guarantors";
 
 export interface ExistingCustomerOption {
   id: string;
@@ -12,12 +13,8 @@ export interface ExistingCustomerOption {
   address: string | null;
   area: string | null;
   avoId: string | null;
-  g1Name: string | null;
-  g1Cnic: string | null;
-  g1Cell: string | null;
-  g2Name: string | null;
-  g2Cnic: string | null;
-  g2Cell: string | null;
+  guarantors: GuarantorBrief[];
+  noGuarantorReason: string | null;
   status: CustomerStatus;
   openAgreementsCount: number;
   monthlyDue: number;
@@ -54,7 +51,7 @@ export async function getAgreementFormData(): Promise<AgreementFormData> {
     fetchAll((a, b) =>
       supabase
       .from("customers")
-      .select("id, full_name, acc_no, cell, cnic, address, area, avo_id, guarantors(slot, full_name, cnic, cell)")
+      .select("id, full_name, acc_no, cell, cnic, address, area, avo_id, no_guarantor_reason, guarantors(slot, full_name, cnic, cell)")
       .order("full_name")
         .order("id")
         .range(a, b)
@@ -79,6 +76,7 @@ export async function getAgreementFormData(): Promise<AgreementFormData> {
     address: string | null;
     area: string | null;
     avo_id: string | null;
+    no_guarantor_reason: string | null;
     guarantors: { slot: number; full_name: string; cnic: string | null; cell: string | null }[];
   };
   type ProductRecord = {
@@ -94,8 +92,6 @@ export async function getAgreementFormData(): Promise<AgreementFormData> {
   const agreementsByCustomer = summarizeAgreementsByCustomer(openInst);
 
   const customers: ExistingCustomerOption[] = customerRecords.map((c) => {
-    const g1 = c.guarantors.find((g) => g.slot === 1);
-    const g2 = c.guarantors.find((g) => g.slot === 2);
     const statusRow = statusByCustomer.get(c.id);
     return {
       id: c.id,
@@ -106,12 +102,8 @@ export async function getAgreementFormData(): Promise<AgreementFormData> {
       address: c.address,
       area: c.area,
       avoId: c.avo_id,
-      g1Name: g1?.full_name ?? null,
-      g1Cnic: g1?.cnic ?? null,
-      g1Cell: g1?.cell ?? null,
-      g2Name: g2?.full_name ?? null,
-      g2Cnic: g2?.cnic ?? null,
-      g2Cell: g2?.cell ?? null,
+      guarantors: toGuarantorBriefs(c.guarantors),
+      noGuarantorReason: c.no_guarantor_reason,
       status: statusRow?.status ?? NO_ACTIVE_PLAN,
       openAgreementsCount: (agreementsByCustomer.get(c.id) ?? []).length,
       monthlyDue: Math.max(0, statusRow?.due_now ?? 0),

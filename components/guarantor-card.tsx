@@ -1,7 +1,7 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
-import { CheckCircle, AlertTriangle, ShieldCheck } from "lucide-react";
+import { CheckCircle, AlertTriangle, ShieldCheck, Trash2 } from "lucide-react";
 import { MaskedInput } from "@/components/masked-input";
 import { maskCnic, maskCell, RELATIONS, type AgreementFormValues } from "@/lib/agreement-schema";
 
@@ -9,22 +9,22 @@ const inputCls = "px-[15px] py-[10px] rounded-xl border border-line bg-soft text
 const labelCls = "text-[11.5px] font-bold text-ink2";
 
 export function GuarantorCard({
-  slot,
-  title,
-  disabled,
+  index,
+  onRemove,
   defaulterCnics,
 }: {
-  slot: 1 | 2;
-  title: string;
-  disabled: boolean;
+  index: number;
+  /** Omitted when this is the only guarantor left. */
+  onRemove?: () => void;
   defaulterCnics: Set<string>;
 }) {
   const { control, watch, formState } = useFormContext<AgreementFormValues>();
-  const fieldName = slot === 1 ? "guarantor1" : "guarantor2";
+  const fieldName = `guarantors.${index}` as const;
   const g = watch(fieldName);
-  const errors = formState.errors[fieldName];
-  const complete = !disabled && !!g.name.trim() && !!g.cnic && !!g.cell;
-  const isDefaulter = g.cnic && defaulterCnics.has(g.cnic);
+  const errors = formState.errors.guarantors?.[index];
+  const title = `Guarantor ${index + 1}`;
+  const complete = !!g?.name.trim() && !!g?.cnic && !!g?.cell;
+  const isDefaulter = !!g?.cnic && defaulterCnics.has(g.cnic);
 
   return (
     <div className="p-[19px_20px] rounded-[var(--r-lg)] bg-panel shadow-[var(--sh)] flex flex-col gap-3">
@@ -34,6 +34,16 @@ export function GuarantorCard({
         </span>
         <h2 className="text-[15.5px] font-extrabold m-0 flex-1">{title}</h2>
         {complete && <CheckCircle size={18} strokeWidth={2.4} className="text-g500" />}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            title={`Remove ${title.toLowerCase()}`}
+            className="iconbtn border-0 cursor-pointer w-8 h-8 rounded-full bg-soft text-ink3 flex items-center justify-center"
+          >
+            <Trash2 size={15} strokeWidth={2.4} />
+          </button>
+        )}
       </div>
 
       <div className="form-grid-2">
@@ -43,7 +53,7 @@ export function GuarantorCard({
             name={`${fieldName}.name`}
             control={control}
             render={({ field }) => (
-              <input {...field} disabled={disabled} placeholder="Asad Khan" className={inputCls} style={errors?.name ? { borderColor: "var(--red)" } : undefined} />
+              <input {...field} placeholder="Asad Khan" className={inputCls} style={errors?.name ? { borderColor: "var(--red)" } : undefined} />
             )}
           />
           {errors?.name && <span className="text-[11px] font-semibold text-red">{errors.name.message}</span>}
@@ -55,7 +65,7 @@ export function GuarantorCard({
             name={`${fieldName}.cnic`}
             control={control}
             render={({ field }) => (
-              <MaskedInput value={field.value} onChange={field.onChange} mask={maskCnic} placeholder="00000-0000000-0" disabled={disabled} error={errors?.cnic?.message} />
+              <MaskedInput value={field.value} onChange={field.onChange} mask={maskCnic} placeholder="00000-0000000-0" error={errors?.cnic?.message} />
             )}
           />
           {isDefaulter && (
@@ -71,7 +81,7 @@ export function GuarantorCard({
             name={`${fieldName}.cell`}
             control={control}
             render={({ field }) => (
-              <MaskedInput value={field.value} onChange={field.onChange} mask={maskCell} placeholder="03XX-XXXXXXX" disabled={disabled} error={errors?.cell?.message} />
+              <MaskedInput value={field.value} onChange={field.onChange} mask={maskCell} placeholder="03XX-XXXXXXX" error={errors?.cell?.message} />
             )}
           />
         </div>
@@ -82,7 +92,7 @@ export function GuarantorCard({
             name={`${fieldName}.relation`}
             control={control}
             render={({ field }) => (
-              <select {...field} disabled={disabled} className={inputCls}>
+              <select {...field} className={inputCls}>
                 {RELATIONS.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -97,7 +107,7 @@ export function GuarantorCard({
           <Controller
             name={`${fieldName}.address`}
             control={control}
-            render={({ field }) => <input {...field} disabled={disabled} className={inputCls} />}
+            render={({ field }) => <input {...field} className={inputCls} />}
           />
         </div>
       </div>

@@ -38,8 +38,6 @@ export default async function CustomerLedgerPage({ params }: { params: Promise<{
   const isManager = permissions.canManageEmployees; // owner / manager
 
   const { customer, guarantors, agreements, receipts } = ledger;
-  const g1 = guarantors.find((g) => g.slot === 1);
-  const g2 = guarantors.find((g) => g.slot === 2);
 
   return (
     <div className="flex flex-col gap-4">
@@ -90,8 +88,23 @@ export default async function CustomerLedgerPage({ params }: { params: Promise<{
           <InfoRow label="Occupation" value={customer.occupation ?? "—"} />
         </InfoCard>
 
-        <GuarantorCard guarantor={g1} slot={1} />
-        <GuarantorCard guarantor={g2} slot={2} />
+        {guarantors.map((g, i) => (
+          <GuarantorCard key={g.slot} guarantor={g} title={`Guarantor ${i + 1}`} />
+        ))}
+        {guarantors.length === 0 && (
+          <InfoCard title="Guarantor">
+            {customer.noGuarantorReason ? (
+              <>
+                <span className="self-start text-[11px] font-bold px-[10px] py-[4px] rounded-full bg-amber50" style={{ color: "#8a5a10" }}>
+                  No guarantor required
+                </span>
+                <InfoRow label="Reason" value={customer.noGuarantorReason} />
+              </>
+            ) : (
+              <span className="text-[13px] text-ink2">Not recorded</span>
+            )}
+          </InfoCard>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">
@@ -151,24 +164,18 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
 
 function GuarantorCard({
   guarantor,
-  slot,
+  title,
 }: {
-  guarantor: { fullName: string; fatherName: string | null; cnic: string | null; cell: string | null; address: string | null; relation: string | null } | undefined;
-  slot: number;
+  guarantor: { fullName: string; fatherName: string | null; cnic: string | null; cell: string | null; address: string | null; relation: string | null };
+  title: string;
 }) {
   return (
-    <InfoCard title={`Guarantor ${slot}`}>
-      {guarantor ? (
-        <>
-          <InfoRow label="Name" value={guarantor.fullName} />
-          <InfoRow label="Father / husband" value={guarantor.fatherName ?? "—"} />
-          <InfoRow label="CNIC" value={guarantor.cnic ?? "—"} />
-          <InfoRow label="Cell" value={guarantor.cell ?? "—"} />
-          <InfoRow label="Relation" value={guarantor.relation ?? "—"} />
-        </>
-      ) : (
-        <span className="text-[13px] text-ink2">Not recorded</span>
-      )}
+    <InfoCard title={title}>
+      <InfoRow label="Name" value={guarantor.fullName} />
+      <InfoRow label="Father / husband" value={guarantor.fatherName ?? "—"} />
+      <InfoRow label="CNIC" value={guarantor.cnic ?? "—"} />
+      <InfoRow label="Cell" value={guarantor.cell ?? "—"} />
+      <InfoRow label="Relation" value={guarantor.relation ?? "—"} />
     </InfoCard>
   );
 }

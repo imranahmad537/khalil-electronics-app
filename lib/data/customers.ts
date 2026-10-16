@@ -4,6 +4,7 @@ import { shopMonthStartISO, shopMonthStartStr } from "@/lib/shop-time";
 import type { CustomerMonthStatus, CustomerStatus } from "@/lib/types";
 import { fetchOpenInstallments, summarizeAgreementsByCustomer, type AgreementSummary } from "@/lib/data/agreements";
 import type { CollectAgreement } from "@/components/collect-dialog";
+import { toGuarantorBriefs, type GuarantorBrief } from "@/lib/guarantors";
 
 export interface CustomerListRow {
   customerId: string;
@@ -12,10 +13,8 @@ export interface CustomerListRow {
   cell: string;
   area: string | null;
   avoName: string;
-  g1Name: string | null;
-  g1Cell: string | null;
-  g2Name: string | null;
-  g2Cell: string | null;
+  guarantors: GuarantorBrief[];
+  noGuarantorReason: string | null;
   status: CustomerStatus;
   dueNow: number;
   remaining: number;
@@ -44,7 +43,7 @@ export async function getCustomersData(): Promise<CustomersData> {
     fetchAll((a, b) =>
       supabase
       .from("customers")
-      .select("id, acc_no, full_name, cell, area, avo_id, created_at, guarantors(slot, full_name, cell)")
+      .select("id, acc_no, full_name, cell, area, avo_id, created_at, no_guarantor_reason, guarantors(slot, full_name, cell)")
       .order("full_name")
         .order("id")
         .range(a, b)
@@ -68,6 +67,7 @@ export async function getCustomersData(): Promise<CustomersData> {
     area: string | null;
     avo_id: string | null;
     created_at: string;
+    no_guarantor_reason: string | null;
     guarantors: { slot: number; full_name: string; cell: string | null }[];
   };
 
@@ -81,8 +81,6 @@ export async function getCustomersData(): Promise<CustomersData> {
 
   const rows: CustomerListRow[] = customers.map((c) => {
     const statusRow = statusByCustomer.get(c.id);
-    const g1 = c.guarantors.find((g) => g.slot === 1);
-    const g2 = c.guarantors.find((g) => g.slot === 2);
     const agreements = agreementsByCustomer.get(c.id) ?? [];
 
     const collectAgreements: CollectAgreement[] = agreements
@@ -101,10 +99,8 @@ export async function getCustomersData(): Promise<CustomersData> {
       cell: c.cell,
       area: c.area,
       avoName: c.avo_id ? officerNameById.get(c.avo_id) ?? "Unassigned" : "Unassigned",
-      g1Name: g1?.full_name ?? null,
-      g1Cell: g1?.cell ?? null,
-      g2Name: g2?.full_name ?? null,
-      g2Cell: g2?.cell ?? null,
+      guarantors: toGuarantorBriefs(c.guarantors),
+      noGuarantorReason: c.no_guarantor_reason,
       status: statusRow?.status ?? NO_ACTIVE_PLAN,
       dueNow: Math.max(0, statusRow?.due_now ?? 0),
       remaining: Math.max(0, statusRow?.remaining ?? 0),
@@ -182,6 +178,7 @@ export interface CustomerLedger {
     avoName: string;
     blacklisted: boolean;
     createdAt: string;
+    noGuarantorReason: string | null;
   };
   guarantors: {
     slot: number;
@@ -203,7 +200,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
     supabase
       .from("customers")
       .select(
-        "id, acc_no, full_name, father_name, cnic, cell, cell2, address, area, occupation, blacklisted, created_at, avo:profiles!customers_avo_id_fkey(full_name)"
+        "id, acc_no, full_name, father_name, cnic, cell, cell2, address, area, occupation, blacklisted, created_at, no_guarantor_reason, avo:profiles!customers_avo_id_fkey(full_name)"
       )
       .eq("id", customerId)
       .maybeSingle(),
@@ -246,6 +243,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
     occupation: string | null;
     blacklisted: boolean;
     created_at: string;
+    no_guarantor_reason: string | null;
     avo: { full_name: string } | null;
   };
   type AgreementRecord = {
@@ -337,6 +335,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
       avoName: c.avo?.full_name ?? "Unassigned",
       blacklisted: c.blacklisted,
       createdAt: c.created_at,
+      noGuarantorReason: c.no_guarantor_reason,
     },
     guarantors: (guarantorsRes.data ?? []).map((g) => ({
       slot: g.slot,

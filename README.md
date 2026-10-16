@@ -3,7 +3,7 @@
 ## Overview
 This is an office and field system for an electronics shop that sells mobiles, fridges, ACs, LEDs, bikes and batteries. Sales are either direct or on 10 or 12 month installment plans. The system covers:
 
-- customers and two guarantors
+- customers and their guarantors (1–4, or none with a recorded reason)
 - AVO (Account Verification Officer) house verification
 - agreements with multiple products, including repeat purchases in later months
 - monthly collection with shortfall carry-forward

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomerPicker } from "@/components/customer-picker";
-import { GuarantorCard } from "@/components/guarantor-card";
+import { GuarantorsSection } from "@/components/guarantors-section";
 import { ProductLineTable } from "@/components/product-line-table";
 import { PaymentSection, PlanPicker, financedAmount } from "@/components/payment-section";
 import { AgreementSummary, type SummaryRow } from "@/components/agreement-summary";
@@ -80,11 +80,13 @@ export function AgreementForm({
   const guarantorsDone =
     !isInstallment ||
     (values.mode === "existing" && values.useExistingGuarantors) ||
-    [values.guarantor1, values.guarantor2].every((g) => g.name.trim() && g.cnic && g.cell);
+    (values.noGuarantor
+      ? !!values.noGuarantorReason.trim()
+      : values.guarantors.length > 0 && values.guarantors.every((g) => g.name.trim() && g.cnic && g.cell));
   const checklist = [
     { label: "Customer details", done: customerDone },
     { label: "Payment plan", done: values.plan !== null },
-    { label: "Two guarantors", done: guarantorsDone },
+    { label: "Guarantors", done: guarantorsDone },
     { label: "At least one product", done: validItems.length > 0 && total > 0 },
   ];
   const missingCount = checklist.filter((c) => !c.done).length;
@@ -116,8 +118,9 @@ export function AgreementForm({
                   }
                 : null,
             useExistingGuarantors: v.mode === "existing" && v.useExistingGuarantors,
-            guarantor1: v.guarantor1,
-            guarantor2: v.guarantor2,
+            guarantors: v.guarantors,
+            noGuarantor: v.noGuarantor,
+            noGuarantorReason: v.noGuarantorReason,
             items: v.items,
             plan: v.plan as 12 | 10 | 0,
             advance: v.advance,
@@ -161,22 +164,7 @@ export function AgreementForm({
           <CustomerPicker customers={customers} officers={officers} areas={areas} />
           <PlanPicker total={total} />
 
-          {isInstallment && (
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-              <GuarantorCard
-                slot={1}
-                title={selectedCustomer && values.useExistingGuarantors ? `Guarantor 1 · ${selectedCustomer.g1Name ?? "—"}` : "Guarantor 1"}
-                disabled={values.mode === "existing" && values.useExistingGuarantors}
-                defaulterCnics={defaulterCnics}
-              />
-              <GuarantorCard
-                slot={2}
-                title={selectedCustomer && values.useExistingGuarantors ? `Guarantor 2 · ${selectedCustomer.g2Name ?? "—"}` : "Guarantor 2"}
-                disabled={values.mode === "existing" && values.useExistingGuarantors}
-                defaulterCnics={defaulterCnics}
-              />
-            </div>
-          )}
+          {isInstallment && <GuarantorsSection selectedCustomer={selectedCustomer} defaulterCnics={defaulterCnics} />}
 
           <ProductLineTable products={products} />
           <PaymentSection total={total} />
@@ -185,8 +173,8 @@ export function AgreementForm({
 
         <AgreementSummary
           rows={rows}
-          checklist={isInstallment ? checklist : checklist.filter((c) => c.label !== "Two guarantors")}
-          missingCount={isInstallment ? missingCount : checklist.filter((c) => c.label !== "Two guarantors" && !c.done).length}
+          checklist={isInstallment ? checklist : checklist.filter((c) => c.label !== "Guarantors")}
+          missingCount={isInstallment ? missingCount : checklist.filter((c) => c.label !== "Guarantors" && !c.done).length}
           pending={pending}
           isDirect={isDirect}
           onSubmit={form.handleSubmit(onValid, () => setError("Fix the highlighted fields first."))}

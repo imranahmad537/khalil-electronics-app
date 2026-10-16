@@ -6,6 +6,7 @@ import { matchAvoByArea } from "@/lib/avo-matching";
 import { friendlyDbError } from "@/lib/db-errors";
 import { isMoneyAccount, isPayMode, type MoneyAccount, type PayMode } from "@/lib/payment";
 import { cellError, cnicError } from "@/lib/validation";
+import { MAX_GUARANTORS } from "@/lib/guarantors";
 
 export interface AgreementItemInput {
   productId: string;
@@ -41,8 +42,10 @@ export interface CreateAgreementInput {
   customerId: string | null;
   newCustomer: NewCustomerInput | null;
   useExistingGuarantors: boolean;
-  guarantor1: GuarantorInput;
-  guarantor2: GuarantorInput;
+  /** Full guarantor list (1–4), ignored when useExistingGuarantors or noGuarantor. */
+  guarantors: GuarantorInput[];
+  noGuarantor: boolean;
+  noGuarantorReason: string;
   items: AgreementItemInput[];
   plan: 12 | 10 | 0;
   advance: number;
@@ -113,22 +116,29 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
     };
   }
 
-  if (isInstallment && !input.useExistingGuarantors) {
-    const bad =
-      fieldError("Guarantor 1 CNIC", cnicError(input.guarantor1.cnic, true)) ??
-      fieldError("Guarantor 1 cell", cellError(input.guarantor1.cell, true)) ??
-      fieldError("Guarantor 2 CNIC", cnicError(input.guarantor2.cnic, true)) ??
-      fieldError("Guarantor 2 cell", cellError(input.guarantor2.cell, true));
-    if (bad) return { ok: false, error: bad };
+  const replaceGuarantors = isInstallment && !input.useExistingGuarantors;
+  const waiveGuarantors = replaceGuarantors && input.noGuarantor;
+  const noGuarantorReason = input.noGuarantorReason.trim();
+  if (waiveGuarantors && !noGuarantorReason) {
+    return { ok: false, error: "Record why this sale needs no guarantor." };
+  }
+  if (replaceGuarantors && !waiveGuarantors) {
+    if (input.guarantors.length === 0) return { ok: false, error: "Add at least one guarantor, or mark the sale as no guarantor." };
+    if (input.guarantors.length > MAX_GUARANTORS) return { ok: false, error: `At most ${MAX_GUARANTORS} guarantors.` };
+    for (const [i, g] of input.guarantors.entries()) {
+      const bad =
+        (g.name.trim() ? null : `Guarantor ${i + 1} name: required`) ??
+        fieldError(`Guarantor ${i + 1} CNIC`, cnicError(g.cnic, true)) ??
+        fieldError(`Guarantor ${i + 1} cell`, cellError(g.cell, true));
+      if (bad) return { ok: false, error: bad };
+    }
   }
 
-  const guarantors =
-    isInstallment && !input.useExistingGuarantors
-      ? [
-          { slot: 1, ...toGuarantorRow(input.guarantor1) },
-          { slot: 2, ...toGuarantorRow(input.guarantor2) },
-        ]
-      : null;
+  const guarantors = replaceGuarantors
+    ? waiveGuarantors
+      ? []
+      : input.guarantors.map((g, i) => ({ slot: i + 1, ...toGuarantorRow(g) }))
+    : null;
 
   const { data, error } = await supabase.rpc("create_sale", {
     p_client_ref: input.clientRef,
@@ -145,6 +155,7 @@ export async function createNewAgreementAction(input: CreateAgreementInput): Pro
     p_advance: isInstallment ? input.advance : 0,
     p_mode: input.paymentMode,
     p_account: input.paymentAccount,
+    p_no_guarantor_reason: waiveGuarantors ? noGuarantorReason : null,
   });
 
   if (error) return { ok: false, error: friendlyDbError(error, "Could not save the agreement.") };

@@ -3,6 +3,8 @@ import { RowActions } from "@/components/row-actions";
 import { STATUS_META } from "@/lib/status";
 import { money } from "@/lib/money";
 import { getCustomersData } from "@/lib/data/customers";
+import { GuarantorList } from "@/components/guarantor-list";
+import { guarantorSearchText } from "@/lib/guarantors";
 
 const GRID = "minmax(190px,1.8fr) minmax(160px,1.4fr) 86px minmax(105px,1fr) minmax(112px,1fr) 112px 100px";
 
@@ -29,7 +31,7 @@ export default async function CustomersPage() {
     const priceTotal = r.agreements.reduce((t, a) => t + a.totalPrice, 0);
 
     return {
-      search: [r.fullName, r.accNo, r.cell, r.area ?? "", r.g1Name ?? "", r.g2Name ?? "", r.g1Cell ?? "", r.g2Cell ?? ""]
+      search: [r.fullName, r.accNo, r.cell, r.area ?? "", guarantorSearchText(r.guarantors)]
         .join(" ")
         .toLowerCase(),
       status: r.status,
@@ -39,12 +41,7 @@ export default async function CustomersPage() {
         key: r.customerId,
         cells: [
           { kind: "text", text: r.fullName, sub: `Acc ${r.accNo} · ${r.cell}`, weight: 700 },
-          {
-            kind: "text",
-            text: `${r.g1Name ?? "—"} / ${r.g2Name ?? "—"}`,
-            sub: `${r.g1Cell ?? "—"} · ${r.g2Cell ?? "—"}`,
-            weight: 500,
-          },
+          { kind: "node", node: <GuarantorList guarantors={r.guarantors} noGuarantorReason={r.noGuarantorReason} /> },
           { kind: "text", text: planCell.text, sub: planCell.sub, weight: 700 },
           {
             kind: "text",

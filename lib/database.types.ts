@@ -170,6 +170,7 @@ export type Database = {
           full_name: string;
           id: string;
           occupation: string | null;
+          no_guarantor_reason: string | null;
         };
         Insert: {
           acc_no?: string;
@@ -186,6 +187,7 @@ export type Database = {
           full_name: string;
           id?: string;
           occupation?: string | null;
+          no_guarantor_reason?: string | null;
         };
         Update: {
           acc_no?: string;
@@ -202,6 +204,7 @@ export type Database = {
           full_name?: string;
           id?: string;
           occupation?: string | null;
+          no_guarantor_reason?: string | null;
         };
         Relationships: [
           {
@@ -987,6 +990,7 @@ export type Database = {
           p_advance: number;
           p_mode: Database["public"]["Enums"]["pay_mode"];
           p_account: Database["public"]["Enums"]["money_account"];
+          p_no_guarantor_reason?: string | null;
         };
         Returns: Json;
       };
